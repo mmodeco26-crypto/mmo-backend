@@ -1626,7 +1626,12 @@ function App() {
     target: "_blank",
     className: "hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-700/60 text-xs font-bold transition",
     title: "\u0641\u062A\u062D \u0648\u0627\u062C\u0647\u0629 \u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0632\u0628\u0648\u0646 \u0641\u064A \u0646\u0627\u0641\u0630\u0629 \u0645\u0633\u062A\u0642\u0644\u0629"
-  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCF1"), /*#__PURE__*/React.createElement("span", null, "\u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0632\u0628\u0648\u0646 (Client)")), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCF1"), /*#__PURE__*/React.createElement("span", null, "\u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0632\u0628\u0648\u0646 (Client)")), /*#__PURE__*/React.createElement("a", {
+    href: "/driver.html",
+    target: "_blank",
+    className: "hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/15 to-amber-600/15 hover:from-amber-500/25 hover:to-amber-600/25 text-amber-400 border border-amber-500/35 text-xs font-bold transition shadow-sm",
+    title: "\u0641\u062A\u062D \u0648\u0627\u062C\u0647\u0629 \u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0634\u0648\u0641\u0648\u0631 (Livreur / Driver App) \u0641\u064A \u0646\u0627\u0641\u0630\u0629 \u0645\u0633\u062A\u0642\u0644\u0629"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDEF5"), /*#__PURE__*/React.createElement("span", null, "\u062A\u0637\u0628\u064A\u0642 \u0627\u0644\u0634\u0648\u0641\u0648\u0631 (Livreur)")), /*#__PURE__*/React.createElement("button", {
     onClick: () => setSoundEnabled(!soundEnabled),
     className: `p-2 rounded-xl border text-xs transition ${soundEnabled ? 'bg-slate-850 border-slate-700 text-amber-400 hover:bg-slate-800' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'}`,
     title: soundEnabled ? 'كتم التنبيهات الصوتية' : 'تفعيل التنبيهات الصوتية'

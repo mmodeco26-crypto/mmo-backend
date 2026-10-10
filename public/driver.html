@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛵 لطيف موطو — تطبيق الشوفور (Livreur / Driver App DZ)</title>
+
+  <!-- Google Fonts: Cairo for Arabic & JetBrains Mono for DZD Currency -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN with Dark Theme Configuration -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#172033',
+              900: '#0f172a',
+              950: '#070d1a',
+            },
+            amber: {
+              450: '#fbbf24',
+              550: '#d97706',
+            }
+          },
+          fontFamily: {
+            sans: ['Cairo', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          boxShadow: {
+            'glow-amber': '0 0 25px -5px rgba(245, 158, 11, 0.35)',
+            'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.35)',
+            'glow-sky': '0 0 25px -5px rgba(14, 165, 233, 0.35)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Canvas Confetti for Delivery Celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Glassmorphism Styles */
+    .glass-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.65);
+    }
+    .glass-card-subtle {
+      background: rgba(30, 41, 59, 0.65);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(51, 65, 85, 0.45);
+    }
+
+    /* Radar Pulse Animation */
+    @keyframes radarPulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .radar-pulse { animation: radarPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+
+    /* Pulsing beacon */
+    @keyframes beaconGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.15); }
+    }
+    .beacon-glow { animation: beaconGlow 1.5s infinite ease-in-out; }
+
+    #driver-map {
+      width: 100%;
+      height: 100%;
+      min-height: 380px;
+      border-radius: 1rem;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- ========================================================================= -->
+  <!-- 1. شريط التنقل العلوي (DRIVER APP HEADER) -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 glass-card border-b border-slate-800/80 px-3 sm:px-6 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
+      
+      <!-- شعار التطبيق وهوية الشوفور -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/25 border border-amber-300/40">
+          🛵
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-sm sm:text-base text-slate-100 leading-tight">
+              لطيف موطو — تطبيق الشوفور
+            </h1>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              Livreur Pro DZ 🇩🇿
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-1.5">
+            <span>السائق:</span>
+            <strong id="driver-name-display" class="text-amber-400 font-bold">azer deco</strong>
+            <span class="text-slate-600">•</span>
+            <span id="driver-bike-display" class="font-mono text-[10px] text-slate-400">SYM Symphony ST (16-12345-22)</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- أزرار الإجراءات السريعة وحالة التواجد -->
+      <div class="flex items-center gap-2 flex-wrap">
+        
+        <!-- زر التواجد المباشر (Online / Offline Toggle) -->
+        <button id="btn-toggle-online" onclick="toggleOnlineStatus()" class="px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="online-status-text">متصل (En Ligne)</span>
+        </button>
+
+        <!-- روابط النوافذ الأخرى -->
+        <a href="/index.html" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-amber-400 border border-amber-500/30 text-xs font-bold transition" title="فتح لوحة الإدارة العامة">
+          <span>👑</span>
+          <span>لوحة الإدارة</span>
+        </a>
+
+        <a href="/client.html" target="_blank" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-sky-400 border border-sky-500/30 text-xs font-bold transition" title="فتح تطبيق الزبون">
+          <span>📱</span>
+          <span>تطبيق الزبون</span>
+        </a>
+
+        <a href="/simulator.html" class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-700/60 text-xs font-bold transition" title="فتح المحاكي المباشر">
+          <span>🎮</span>
+          <span>المحاكي</span>
+        </a>
+
+        <!-- زر الصوت -->
+        <button id="btn-toggle-sound" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700 text-amber-400 text-xs transition" title="تفعيل/كتم الصوت">
+          <span id="sound-icon">🔊</span>
+        </button>
+
+        <!-- حالة السيرفر -->
+        <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-bold">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span>سيرفر متصل 🟢</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. شريط مؤشرات الأداء والمحفظة (DRIVER KPI & WALLET STRIP) -->
+  <!-- ========================================================================= -->
+  <section class="border-b border-slate-800/80 bg-slate-900/60 px-3 sm:px-6 py-3">
+    <div class="max-w-7xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+      
+      <!-- 1. رصيد المحفظة -->
+      <div class="glass-card rounded-2xl p-3 border border-amber-500/30 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="font-bold flex items-center gap-1 text-amber-400">
+            <span>💳</span> رصيد المحفظة
+          </span>
+          <button onclick="rechargeWalletModal()" class="text-[10px] text-amber-400 hover:text-amber-300 font-bold underline font-mono">
+            + شحن
+          </button>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <span id="driver-wallet-balance" class="text-lg sm:text-xl font-extrabold font-mono text-slate-100">
+            2,450.00
+          </span>
+          <span class="text-xs text-amber-400 font-bold font-mono">DZD</span>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-1">سقف الديون: 3,000 DZD</div>
+      </div>
+
+      <!-- 2. أرباح اليوم الصافية -->
+      <div class="glass-card rounded-2xl p-3 border border-emerald-500/30 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="font-bold flex items-center gap-1 text-emerald-400">
+            <span>💰</span> أرباح اليوم الصافية
+          </span>
+          <span class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded font-mono">+18%</span>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <span id="driver-daily-earnings" class="text-lg sm:text-xl font-extrabold font-mono text-emerald-400">
+            4,850.00
+          </span>
+          <span class="text-xs text-emerald-400 font-bold font-mono">DZD</span>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-1">كاش مستلم مباشرة</div>
+      </div>
+
+      <!-- 3. المشاوير المنفذة اليوم -->
+      <div class="glass-card rounded-2xl p-3 border border-sky-500/30 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="font-bold flex items-center gap-1 text-sky-400">
+            <span>📦</span> مشاوير اليوم
+          </span>
+          <span class="text-[10px] text-sky-400 font-bold font-mono">100% مكتملة</span>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <span id="driver-daily-orders-count" class="text-lg sm:text-xl font-extrabold font-mono text-sky-400">
+            6
+          </span>
+          <span class="text-xs text-slate-400 font-bold">توصيلات</span>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-1">متوسط: 808 DZD / مشوار</div>
+      </div>
+
+      <!-- 4. التقييم والتوثيق -->
+      <div class="glass-card rounded-2xl p-3 border border-purple-500/30 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="font-bold flex items-center gap-1 text-purple-400">
+            <span>⭐</span> تقييم الزبائن
+          </span>
+          <span class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">موثق ✅</span>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <span class="text-lg sm:text-xl font-extrabold font-mono text-purple-300">
+            4.9 / 5.0
+          </span>
+          <span class="text-xs text-slate-400 font-mono">142 مشوار</span>
+        </div>
+        <div class="text-[10px] text-slate-500 mt-1">رخصة سياقة بيومترية A1/A</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 3. المحتوى التفاعلي الرئيسي (MAIN DRIVER WORKSPACE) -->
+  <!-- ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 flex flex-col lg:flex-row gap-4">
+
+    <!-- العمود الأيمن (موبايل أولاً): بطاقة تنفيذ المشوار والتحكم في الطلب -->
+    <div class="w-full lg:w-[440px] flex flex-col gap-3 order-2 lg:order-1">
+
+      <!-- زر محاكاة طلب توصيل جديد فوري -->
+      <div class="glass-card rounded-2xl p-3 flex items-center justify-between gap-2 border border-slate-700/80 bg-slate-900/80">
+        <div class="text-xs">
+          <span class="font-bold text-slate-200">⚡ تجربة فورية:</span>
+          <p class="text-[10px] text-slate-400">محاكاة وصول طلب جديد لرادار السائق</p>
+        </div>
+        <button onclick="triggerSimulatedNewOrder()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black transition flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95">
+          <span>🚀</span>
+          <span>طلب جديد كاش</span>
+        </button>
+      </div>
+
+      <!-- 1. صندوق الحالة النشطة للطلب الحالي (ACTIVE ORDER CARD) -->
+      <div id="active-order-card" class="glass-card rounded-2xl p-4 sm:p-5 shadow-2xl border-2 border-amber-500/50 transition-all duration-300">
+        
+        <!-- الترويسة والحالة الحالية -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+            <h2 id="order-step-title" class="font-extrabold text-sm text-amber-400">
+              في انتظار استلام الطرد 📦
+            </h2>
+          </div>
+          <span id="order-id-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">
+            #3a2f1d2e
+          </span>
+        </div>
+
+        <!-- مسار التوصيل (Pickup & Dropoff) -->
+        <div class="mt-4 space-y-3">
+          
+          <!-- نقطة الاستلام -->
+          <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+            <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shrink-0">
+              🟢
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between text-xs mb-0.5">
+                <span class="text-slate-400 font-bold">مكان استلام الطرد:</span>
+                <span id="pickup-distance-text" class="text-emerald-400 font-mono text-[11px] font-bold">على بعد 800 م</span>
+              </div>
+              <p id="pickup-address-text" class="text-xs font-bold text-slate-100 truncate">
+                البريد المركزي، الجزائر العاصمة
+              </p>
+              <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/80 text-[11px]">
+                <span class="text-slate-400">المرسل: <strong class="text-slate-200">مريم بن عيسى</strong></span>
+                <a href="tel:0550123456" class="text-sky-400 hover:text-sky-300 font-mono font-bold flex items-center gap-1">
+                  <span>📞</span> 0550123456
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- وجهة التسليم -->
+          <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-sm shrink-0">
+              🔴
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between text-xs mb-0.5">
+                <span class="text-slate-400 font-bold">وجهة تسليم الطرد:</span>
+                <span id="total-trip-distance" class="text-rose-400 font-mono text-[11px] font-bold">14.2 كم</span>
+              </div>
+              <p id="dropoff-address-text" class="text-xs font-bold text-slate-100 truncate">
+                جامعة هواري بومدين (USTHB)، باب الزوار
+              </p>
+              <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/80 text-[11px]">
+                <span class="text-slate-400">المستلم: <strong class="text-slate-200">ياسين بلعربي</strong></span>
+                <a href="tel:0794362893" class="text-sky-400 hover:text-sky-300 font-mono font-bold flex items-center gap-1">
+                  <span>📞</span> 0794362893
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- معلومات الطرد والتسعيرة الصافية للشوفور -->
+        <div class="mt-3.5 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-emerald-500/10 border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400">نوع الشحنة:</span>
+            <span id="package-type-badge" class="font-bold text-slate-200">طرد صغير وعاجل (وثائق) 📦</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400">ملاحظات الزبون:</span>
+            <span class="font-bold text-amber-300 text-[11px]">الاتصال فور الوصول عند المدخل</span>
+          </div>
+          <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+            <div>
+              <span class="text-xs text-slate-400 block">المبلغ المقبوض كاش من الزبون:</span>
+              <span id="order-cash-total" class="text-sm font-extrabold font-mono text-slate-200">1,033.50 DZD</span>
+            </div>
+            <div class="text-left">
+              <span class="text-xs text-emerald-400 font-bold block">صافي ربح السائق:</span>
+              <span id="order-driver-net" class="text-base font-black font-mono text-emerald-400">878.50 DZD</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- شريط التقدم الفعلي للمشوار (STEPPER PROGRESS) -->
+        <div class="mt-4 pt-3 border-t border-slate-800">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
+            <span id="step-label-1" class="text-amber-400">1. التوجه للاستلام</span>
+            <span id="step-label-2" class="text-slate-500">2. استلام الطرد</span>
+            <span id="step-label-3" class="text-slate-500">3. التسليم كاش</span>
+          </div>
+          <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div id="order-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all duration-300" style="width: 35%;"></div>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات التفاعلية للطلب (ACTION BUTTONS) -->
+        <div class="mt-4 space-y-2">
+          
+          <!-- زر 1: تأكيد استلام الطرد من نقطة البداية -->
+          <button id="btn-action-pickup" onclick="handleDriverPickupAction()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2 active:scale-95">
+            <span>📦</span>
+            <span>استلمت الطرد من الزبون (Colis récupéré)</span>
+          </button>
+
+          <!-- زر 2: تأكيد تسليم الطرد وقبض الكاش (يظهر في المرحلة الثانية) -->
+          <button id="btn-action-deliver" onclick="handleDriverDeliverAction()" class="hidden w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2 active:scale-95">
+            <span>✅</span>
+            <span>تم التسليم بنجاح وقبض المبلغ كاش (Livré & Encaissé)</span>
+          </button>
+
+          <!-- زر 3: العودة بعد اكتمال الطلب -->
+          <button id="btn-action-reset" onclick="handleDriverResetAction()" class="hidden w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition flex items-center justify-center gap-2">
+            <span>🛵</span>
+            <span>العودة للاستعداد واستقبال طلب جديد</span>
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- بطاقة الملاحة خطوة بخطوة (TURN-BY-TURN GUIDANCE CARD) -->
+      <div class="glass-card rounded-2xl p-3.5 border border-sky-500/30 bg-slate-900/90 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-xl shrink-0 font-bold">
+          ↗️
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between text-[11px] text-slate-400">
+            <span class="font-bold text-sky-400">توجيه الملاحة الفوري:</span>
+            <span id="nav-remaining-time" class="font-mono text-slate-300 font-bold">متبقي 18 دقيقة</span>
+          </div>
+          <p id="nav-instruction-text" class="text-xs font-bold text-slate-100 truncate mt-0.5">
+            بعد 400 متر: اسلك اليمين نحو الطريق السريع باتجاه باب الزوار
+          </p>
+        </div>
+      </div>
+
+      <!-- تحكم محاكاة حركة الدراجة عبر الطريق (GPS TRACKING CONTROLS) -->
+      <div class="glass-card rounded-2xl p-3 border border-slate-800 bg-slate-900/70 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-slate-300 flex items-center gap-1.5">
+            <span>🛰️</span> محاكاة تتبع الدراجة على الطريق:
+          </span>
+          <span id="gps-speed-label" class="font-mono text-amber-400 font-bold text-[11px]">السرعة: 1x</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-sim-gps-start" onclick="toggleSimGpsTracking()" class="flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
+            <span id="gps-play-icon">▶️</span>
+            <span id="gps-play-text">تشغيل حركة الدراجة</span>
+          </button>
+          <button onclick="setSimSpeed(1)" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300">1x</button>
+          <button onclick="setSimSpeed(2)" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300">2x</button>
+          <button onclick="setSimSpeed(5)" class="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-mono font-bold text-slate-300">5x</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- العمود الأيسر (الرئيسي): خريطة الملاحة الحية للأسطول -->
+    <div class="flex-1 flex flex-col gap-3 order-1 lg:order-2 min-h-[420px] lg:min-h-[580px]">
+      
+      <!-- حاوية الخريطة التفاعلية -->
+      <div class="glass-card rounded-2xl p-2.5 flex-1 flex flex-col relative overflow-hidden shadow-2xl border border-slate-800">
+        
+        <!-- شريط تحكم الخريطة السريع -->
+        <div class="absolute top-4 right-4 z-20 flex items-center gap-1.5 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="font-bold text-slate-200">رادار الجزائر العاصمة DZ</span>
+          <button onclick="recenterMap()" class="mr-2 text-slate-400 hover:text-amber-400 font-bold text-[11px]" title="إعادة تركيز الخريطة">
+            📍 العاصمة
+          </button>
+        </div>
+
+        <!-- عنصر خريطة Leaflet -->
+        <div id="driver-map" class="flex-1 rounded-xl"></div>
+
+        <!-- مؤشر مسار الملاحة أسفل الخريطة -->
+        <div class="mt-2 px-2 py-1.5 bg-slate-900/90 rounded-xl border border-slate-800/80 flex flex-wrap items-center justify-between text-xs gap-2">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1 text-emerald-400 font-bold text-[11px]">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> استلام (البريد المركزي)
+            </span>
+            <span class="flex items-center gap-1 text-rose-400 font-bold text-[11px]">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span> تسليم (باب الزوار)
+            </span>
+            <span class="flex items-center gap-1 text-amber-400 font-bold text-[11px]">
+              <span>🛵</span> دراجة السائق
+            </span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-400">
+            مسار طرقي معتمد OSRM Algiers
+          </div>
+        </div>
+
+      </div>
+
+      <!-- تبويبات تفاصيل السائق والمحفظة والوثائق -->
+      <div class="glass-card rounded-2xl p-4 border border-slate-800">
+        <div class="flex items-center gap-2 border-b border-slate-800 pb-2 mb-3">
+          <button onclick="switchDriverTab('history')" id="tab-btn-history" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            📜 سجل مشاوير اليوم
+          </button>
+          <button onclick="switchDriverTab('kyc')" id="tab-btn-kyc" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200">
+            📑 وثائق التوثيق (KYC)
+          </button>
+          <button onclick="switchDriverTab('settings')" id="tab-btn-settings" class="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200">
+            ⚙️ إعدادات الحساب
+          </button>
+        </div>
+
+        <!-- تبويب 1: سجل المشاوير السابقة -->
+        <div id="tab-content-history" class="space-y-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</span>
+              <div>
+                <p class="font-bold text-slate-200">البريد المركزي ➡️ باب الزوار</p>
+                <span class="text-[10px] text-slate-500 font-mono">اليوم، 13:42 • 14.2 كم</span>
+              </div>
+            </div>
+            <div class="text-left font-mono">
+              <span class="font-black text-emerald-400">+878.50 DZD</span>
+              <span class="block text-[10px] text-slate-500">كاش مقبوض</span>
+            </div>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">✓</span>
+              <div>
+                <p class="font-bold text-slate-200">حيدرة ➡️ بن عكنون</p>
+                <span class="text-[10px] text-slate-500 font-mono">اليوم، 11:20 • 5.1 كم</span>
+              </div>
+            </div>
+            <div class="text-left font-mono">
+              <span class="font-black text-emerald-400">+510.00 DZD</span>
+              <span class="block text-[10px] text-slate-500">كاش مقبوض</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- تبويب 2: وثائق السائق KYC -->
+        <div id="tab-content-kyc" class="hidden space-y-2 text-xs">
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-bold">رخصة السياقة البيومترية (Permis):</span>
+              <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">موثقة ومقبولة ✅</span>
+            </div>
+            <p class="text-[11px] text-slate-300 font-mono">رقم: DZ-16-098234-A1 • صالحة إلى غاية: 2028/08/14</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400 font-bold">البطاقة الرمادية (Carte Grise):</span>
+              <span class="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded text-[10px]">سارية المفعول ✅</span>
+            </div>
+            <p class="text-[11px] text-slate-300 font-mono">SYM Symphony ST 150cc • الترقيم: 16-12345-22</p>
+          </div>
+        </div>
+
+        <!-- تبويب 3: إعدادات الحساب -->
+        <div id="tab-content-settings" class="hidden space-y-3 text-xs">
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+            <div>
+              <p class="font-bold text-slate-200">تبديل هوية الشوفور للتجربة:</p>
+              <p class="text-[10px] text-slate-400">اختر السائق المراد تشغيل واجهته</p>
+            </div>
+            <select id="select-driver-profile" onchange="changeDriverProfile(this.value)" class="bg-slate-850 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-200 font-bold text-xs focus:outline-none">
+              <option value="drv-01">azer deco (SYM Symphony ST)</option>
+              <option value="drv-02">وليد عثماني (Yamaha TMax)</option>
+              <option value="drv-03">كريم بلحاج (Honda SH 150)</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- 4. نافذة التنبيه بطلب جديد وارد (INCOMING ORDER MODAL / RADAR ALERT) -->
+  <!-- ========================================================================= -->
+  <div id="modal-incoming-order" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div class="w-full max-w-md bg-slate-900 border-2 border-amber-500 shadow-2xl shadow-amber-500/25 rounded-3xl p-5 relative overflow-hidden">
+      
+      <!-- شريط العد التنازلي لقبول الطلب (30s) -->
+      <div class="absolute top-0 left-0 right-0 h-1.5 bg-slate-800">
+        <div id="incoming-countdown-bar" class="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-100" style="width: 100%;"></div>
+      </div>
+
+      <!-- الترويسة ونداء التوصيل -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mt-1">
+        <div class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg font-black animate-bounce">
+            🛵
+          </span>
+          <div>
+            <h3 class="font-black text-sm text-amber-400">طلب توصيل طرد جديد!</h3>
+            <p class="text-[10px] text-slate-400">فرصة توصيل قريبة منك في العاصمة</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span id="incoming-timer-text" class="text-xs font-mono font-black text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-lg border border-amber-500/30">
+            30 ثانية
+          </span>
+        </div>
+      </div>
+
+      <!-- تفاصيل خط السير -->
+      <div class="mt-4 space-y-2.5 text-xs">
+        <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+          <div class="flex items-start gap-2">
+            <span class="text-emerald-400 font-bold">🟢 من:</span>
+            <span id="incoming-pickup-text" class="font-bold text-slate-100">البريد المركزي، الجزائر العاصمة</span>
+          </div>
+          <div class="flex items-start gap-2 pt-1 border-t border-slate-800/80">
+            <span class="text-rose-400 font-bold">🔴 إلى:</span>
+            <span id="incoming-dropoff-text" class="font-bold text-slate-100">جامعة USTHB، باب الزوار</span>
+          </div>
+        </div>
+
+        <!-- السعر الصافي والأرباح -->
+        <div class="grid grid-cols-2 gap-2 text-center">
+          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">المسافة المقدرة</span>
+            <span id="incoming-distance-val" class="font-extrabold font-mono text-sm text-slate-200">14.2 كم</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+            <span class="text-[10px] text-emerald-400 font-bold block">صافي ربحك كاش</span>
+            <span id="incoming-price-val" class="font-black font-mono text-base text-emerald-400">878.50 DZD</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- أزرار القبول والرفض -->
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button onclick="rejectIncomingOrder()" class="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition active:scale-95">
+          ❌ رفض الطلب
+        </button>
+        <button onclick="acceptIncomingOrder()" class="py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-emerald-500/25 transition active:scale-95">
+          ✅ قبول ومباشرة
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 5. نافذة شحن رصيد المحفظة (MODAL RECHARGE WALLET) -->
+  <!-- ========================================================================= -->
+  <div id="modal-recharge-wallet" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+    <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+          <span>💳</span> شحن رصيد محفظة السائق
+        </h3>
+        <button onclick="closeRechargeModal()" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+      </div>
+      <div class="space-y-2">
+        <label class="text-xs text-slate-400 font-bold">المبلغ المراد شحنه (DZD):</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="addRechargeAmount(1000)" class="py-2 rounded-xl bg-slate-850 hover:bg-slate-800 text-xs font-mono font-bold text-slate-200 border border-slate-700">+1,000</button>
+          <button onclick="addRechargeAmount(2000)" class="py-2 rounded-xl bg-slate-850 hover:bg-slate-800 text-xs font-mono font-bold text-slate-200 border border-slate-700">+2,000</button>
+          <button onclick="addRechargeAmount(5000)" class="py-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-mono font-black">+5,000</button>
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-400">
+        * يتم شحن الرصيد لتغطية عمولة المنصة (15%) وتمكين استقبال المزيد من الطلبات بدون قيود الديون.
+      </p>
+      <button onclick="closeRechargeModal()" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition">
+        إغلاق
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 6. جافاسكريبت التطبيق ومحرك الخرائط والملاحة (DRIVER APP ENGINE) -->
+  <!-- ========================================================================= -->
+  <script>
+    // بيانات السائقين المتاحة
+    const DRIVER_PROFILES = {
+      'drv-01': {
+        name: 'azer deco',
+        phone: '0794362893',
+        bike: 'SYM Symphony ST (16-12345-22)',
+        wallet: 2450.00,
+        earnings: 4850.00,
+        ordersCount: 6,
+        coords: [36.7538, 3.0588] // بالقرب من الجزائر الوسطى
+      },
+      'drv-02': {
+        name: 'وليد عثماني',
+        phone: '0555123456',
+        bike: 'Yamaha TMax 560 (16-98765-21)',
+        wallet: 1800.00,
+        earnings: 3200.00,
+        ordersCount: 4,
+        coords: [36.7412, 3.0820] // بالقرب من القبة
+      },
+      'drv-03': {
+        name: 'كريم بلحاج',
+        phone: '0666789012',
+        bike: 'Honda SH 150 (16-54321-20)',
+        wallet: 3100.00,
+        earnings: 5400.00,
+        ordersCount: 7,
+        coords: [36.7210, 3.1450] // بالقرب من باب الزوار
+      }
+    };
+
+    // حالة التطبيق العامة
+    let currentDriverId = 'drv-01';
+    let isOnline = true;
+    let soundEnabled = true;
+    let currentStep = 1; // 1: pickup route, 2: deliver route, 3: completed
+    let isTrackingRunning = false;
+    let trackingProgress = 0.25; // 0 to 1
+    let trackingSpeed = 1;
+    let trackingInterval = null;
+    let countdownInterval = null;
+
+    // مسار افتراضي (البريد المركزي إلى باب الزوار)
+    const PICKUP_COORDS = [36.7725, 3.0588]; // Grande Poste
+    const DROPOFF_COORDS = [36.7167, 3.1833]; // Bab Ezzouar
+    
+    // إحداثيات مسار طريق حقيقي بين البريد المركزي وباب الزوار (مأخوذة من OSRM)
+    const ROAD_POINTS = [
+      [36.7725, 3.0588], [36.7712, 3.0601], [36.7685, 3.0620], [36.7645, 3.0645],
+      [36.7600, 3.0670], [36.7550, 3.0720], [36.7500, 3.0780], [36.7460, 3.0850],
+      [36.7420, 3.0930], [36.7380, 3.1020], [36.7340, 3.1150], [36.7300, 3.1280],
+      [36.7260, 3.1420], [36.7220, 3.1560], [36.7190, 3.1700], [36.7167, 3.1833]
+    ];
+
+    // عناصر الخريطة
+    let map = null;
+    let driverMarker = null;
+    let pickupMarker = null;
+    let dropoffMarker = null;
+    let routePolyline = null;
+
+    // تهيئة محرك الصوت (Web Audio API Synthesizer)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playTone(type) {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'incoming') {
+          // نغمة رنين وصول طلب جديد (Beep Beep)
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.setValueAtTime(1174, now + 0.15);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'pickup') {
+          // نغمة استلام الطرد
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.12);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'cash') {
+          // نغمة قبض الكاش والانتهاء (Cash Chime)
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880.00, now + 0.12);
+          osc.frequency.setValueAtTime(1174.66, now + 0.24);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else {
+          // نقرة عادية
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        }
+      } catch (e) {
+        console.warn('Audio note error:', e);
+      }
+    }
+
+    // تهيئة الخريطة Leaflet
+    function initMap() {
+      map = L.map('driver-map', {
+        center: [36.7450, 3.1200],
+        zoom: 12,
+        zoomControl: true
+      });
+
+      // نمط الخريطة الليلي الداكن
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(map);
+
+      // أيقونة مكان الاستلام (🟢)
+      const pickupIcon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="background-color: #10b981; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 14px rgba(16,185,129,0.8); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: #000;">🟢</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      pickupMarker = L.marker(PICKUP_COORDS, { icon: pickupIcon }).addTo(map).bindPopup('<b>مكان استلام الطرد</b><br>البريد المركزي، العاصمة');
+
+      // أيقونة وجهة التسليم (🔴)
+      const dropoffIcon = L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="background-color: #f43f5e; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #ffffff; box-shadow: 0 0 14px rgba(244,63,94,0.8); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: #fff;">🔴</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      dropoffMarker = L.marker(DROPOFF_COORDS, { icon: dropoffIcon }).addTo(map).bindPopup('<b>وجهة التسليم</b><br>جامعة USTHB، باب الزوار');
+
+      // رسم مسار الطريق الفعلي بالأزرق النيون
+      routePolyline = L.polyline(ROAD_POINTS, {
+        color: '#38bdf8',
+        weight: 5,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: '8, 8'
+      }).addTo(map);
+
+      // أيقونة الدراجة النارية للشوفور
+      const bikeIcon = L.divIcon({
+        className: 'custom-bike',
+        html: `<div style="background: linear-gradient(135deg, #f59e0b, #d97706); width: 40px; height: 40px; border-radius: 16px; border: 3px solid #ffffff; box-shadow: 0 0 20px rgba(245,158,11,0.9); display: flex; align-items: center; justify-content: center; font-size: 20px;" class="beacon-glow">🛵</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      const startPos = getPointOnPath(trackingProgress);
+      driverMarker = L.marker(startPos, { icon: bikeIcon }).addTo(map).bindPopup('<b>السائق azer deco 🛵</b><br>في طريقه لتنفيذ الطلب');
+
+      map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+    }
+
+    // حساب إحداثيات الدراجة على المسار بناءً على النسبة (0 إلى 1)
+    function getPointOnPath(progress) {
+      const idx = progress * (ROAD_POINTS.length - 1);
+      const lower = Math.floor(idx);
+      const upper = Math.ceil(idx);
+      if (lower === upper) return ROAD_POINTS[lower];
+      const frac = idx - lower;
+      const lat = ROAD_POINTS[lower][0] + (ROAD_POINTS[upper][0] - ROAD_POINTS[lower][0]) * frac;
+      const lng = ROAD_POINTS[lower][1] + (ROAD_POINTS[upper][1] - ROAD_POINTS[lower][1]) * frac;
+      return [lat, lng];
+    }
+
+    // تحديث موقع الدراجة
+    function updateDriverLocation(progress) {
+      trackingProgress = Math.max(0, Math.min(1, progress));
+      const pos = getPointOnPath(trackingProgress);
+      if (driverMarker) {
+        driverMarker.setLatLng(pos);
+      }
+      // تحديث شريط التقدم
+      const bar = document.getElementById('order-progress-bar');
+      if (bar) bar.style.width = `${Math.round(trackingProgress * 100)}%`;
+    }
+
+    // تشغيل / إيقاف محاكاة حركة الدراجة GPS
+    function toggleSimGpsTracking() {
+      playTone('click');
+      isTrackingRunning = !isTrackingRunning;
+      const icon = document.getElementById('gps-play-icon');
+      const text = document.getElementById('gps-play-text');
+      const btn = document.getElementById('btn-sim-gps-start');
+
+      if (isTrackingRunning) {
+        icon.innerText = '⏸️';
+        text.innerText = 'إيقاف الحركة مؤقتاً';
+        btn.classList.replace('bg-sky-600', 'bg-amber-600');
+        btn.classList.replace('hover:bg-sky-500', 'hover:bg-amber-500');
+
+        trackingInterval = setInterval(() => {
+          let next = trackingProgress + (0.015 * trackingSpeed);
+          if (next >= 1) {
+            next = 1;
+            toggleSimGpsTracking();
+          }
+          updateDriverLocation(next);
+        }, 300);
+      } else {
+        icon.innerText = '▶️';
+        text.innerText = 'تشغيل حركة الدراجة';
+        btn.classList.replace('bg-amber-600', 'bg-sky-600');
+        btn.classList.replace('hover:bg-amber-500', 'hover:bg-sky-500');
+        if (trackingInterval) clearInterval(trackingInterval);
+      }
+    }
+
+    function setSimSpeed(sp) {
+      playTone('click');
+      trackingSpeed = sp;
+      document.getElementById('gps-speed-label').innerText = `السرعة: ${sp}x`;
+    }
+
+    function recenterMap() {
+      playTone('click');
+      if (map && routePolyline) {
+        map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+      }
+    }
+
+    // 1. إجراء استلام الطرد (Pickup Action)
+    function handleDriverPickupAction() {
+      playTone('pickup');
+      currentStep = 2;
+
+      // تحديث العنوان والعناصر
+      document.getElementById('order-step-title').innerText = 'في الطريق لوجهة التسليم 🛵';
+      document.getElementById('order-step-title').className = 'font-extrabold text-sm text-sky-400';
+      
+      document.getElementById('step-label-1').className = 'text-emerald-400';
+      document.getElementById('step-label-2').className = 'text-amber-400';
+
+      // إخفاء زر الاستلام وإظهار زر التسليم
+      document.getElementById('btn-action-pickup').classList.add('hidden');
+      document.getElementById('btn-action-deliver').classList.remove('hidden');
+
+      // توجيه ملاحة جديد
+      document.getElementById('nav-instruction-text').innerText = 'توجه عبر الطريق السريع شرق-غرب نحو مخرج باب الزوار';
+      document.getElementById('nav-remaining-time').innerText = 'متبقي 12 دقيقة';
+
+      // دفع الدراجة لنصف المسار
+      updateDriverLocation(0.5);
+    }
+
+    // 2. إجراء تسليم الطرد وقبض الكاش (Deliver & Cash Action)
+    function handleDriverDeliverAction() {
+      playTone('cash');
+      currentStep = 3;
+
+      // احتفال بالكونفيتي
+      if (window.confetti) {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
+
+      // تحديث الأرباح والمحفظة
+      const drv = DRIVER_PROFILES[currentDriverId];
+      drv.wallet += 878.50;
+      drv.earnings += 878.50;
+      drv.ordersCount += 1;
+
+      document.getElementById('driver-wallet-balance').innerText = drv.wallet.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
+      document.getElementById('driver-daily-earnings').innerText = drv.earnings.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
+      document.getElementById('driver-daily-orders-count').innerText = drv.ordersCount;
+
+      // تحديث الواجهة
+      document.getElementById('order-step-title').innerText = 'تم التسليم بنجاح وقبض المبلغ كاش ✅';
+      document.getElementById('order-step-title').className = 'font-extrabold text-sm text-emerald-400';
+
+      document.getElementById('step-label-2').className = 'text-emerald-400';
+      document.getElementById('step-label-3').className = 'text-emerald-400 font-black';
+
+      document.getElementById('btn-action-deliver').classList.add('hidden');
+      document.getElementById('btn-action-reset').classList.remove('hidden');
+
+      // توجيه ملاحة
+      document.getElementById('nav-instruction-text').innerText = 'وصلت إلى الوجهة وتم تسليم الطرد بنجاح!';
+      document.getElementById('nav-remaining-time').innerText = 'تم الإنجاز';
+
+      updateDriverLocation(1);
+    }
+
+    // 3. إعادة الضبط للطلب القادم (Reset)
+    function handleDriverResetAction() {
+      playTone('click');
+      currentStep = 1;
+
+      document.getElementById('order-step-title').innerText = 'في انتظار استلام الطرد 📦';
+      document.getElementById('order-step-title').className = 'font-extrabold text-sm text-amber-400';
+
+      document.getElementById('step-label-1').className = 'text-amber-400';
+      document.getElementById('step-label-2').className = 'text-slate-500';
+      document.getElementById('step-label-3').className = 'text-slate-500';
+
+      document.getElementById('btn-action-reset').classList.add('hidden');
+      document.getElementById('btn-action-pickup').classList.remove('hidden');
+
+      document.getElementById('nav-instruction-text').innerText = 'بعد 400 متر: اسلك اليمين نحو البريد المركزي';
+      document.getElementById('nav-remaining-time').innerText = 'متبقي 4 دقائق';
+
+      updateDriverLocation(0.15);
+    }
+
+    // محاكاة طلب توصيل جديد فوري (Incoming Delivery Simulation)
+    function triggerSimulatedNewOrder() {
+      playTone('incoming');
+      const modal = document.getElementById('modal-incoming-order');
+      modal.classList.remove('hidden');
+
+      let seconds = 30;
+      const bar = document.getElementById('incoming-countdown-bar');
+      const timerText = document.getElementById('incoming-timer-text');
+
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      countdownInterval = setInterval(() => {
+        seconds--;
+        if (timerText) timerText.innerText = `${seconds} ثانية`;
+        if (bar) bar.style.width = `${(seconds / 30) * 100}%`;
+
+        if (seconds <= 0) {
+          clearInterval(countdownInterval);
+          rejectIncomingOrder();
+        }
+      }, 1000);
+    }
+
+    function acceptIncomingOrder() {
+      playTone('pickup');
+      if (countdownInterval) clearInterval(countdownInterval);
+      document.getElementById('modal-incoming-order').classList.add('hidden');
+      handleDriverResetAction();
+    }
+
+    function rejectIncomingOrder() {
+      playTone('click');
+      if (countdownInterval) clearInterval(countdownInterval);
+      document.getElementById('modal-incoming-order').classList.add('hidden');
+    }
+
+    // تبديل حالة التواجد (Online / Offline)
+    function toggleOnlineStatus() {
+      playTone('click');
+      isOnline = !isOnline;
+      const btn = document.getElementById('btn-toggle-online');
+      const text = document.getElementById('online-status-text');
+
+      if (isOnline) {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30';
+        text.innerText = 'متصل (En Ligne)';
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-black transition flex items-center gap-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30';
+        text.innerText = 'غير متصل (Hors Ligne)';
+      }
+    }
+
+    // تبديل الصوت
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      icon.innerText = soundEnabled ? '🔊' : '🔇';
+    }
+
+    // تبديل هوية الشوفور
+    function changeDriverProfile(id) {
+      playTone('click');
+      currentDriverId = id;
+      const drv = DRIVER_PROFILES[id];
+      if (!drv) return;
+
+      document.getElementById('driver-name-display').innerText = drv.name;
+      document.getElementById('driver-bike-display').innerText = drv.bike;
+      document.getElementById('driver-wallet-balance').innerText = drv.wallet.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
+      document.getElementById('driver-daily-earnings').innerText = drv.earnings.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
+      document.getElementById('driver-daily-orders-count').innerText = drv.ordersCount;
+    }
+
+    // تبديل التبويبات السفلية
+    function switchDriverTab(tab) {
+      playTone('click');
+      ['history', 'kyc', 'settings'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        if (t === tab) {
+          btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+          content.classList.remove('hidden');
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200';
+          content.classList.add('hidden');
+        }
+      });
+    }
+
+    // نوافذ شحن الرصيد
+    function rechargeWalletModal() {
+      playTone('click');
+      document.getElementById('modal-recharge-wallet').classList.remove('hidden');
+    }
+
+    function closeRechargeModal() {
+      playTone('click');
+      document.getElementById('modal-recharge-wallet').classList.add('hidden');
+    }
+
+    function addRechargeAmount(amount) {
+      playTone('cash');
+      const drv = DRIVER_PROFILES[currentDriverId];
+      drv.wallet += amount;
+      document.getElementById('driver-wallet-balance').innerText = drv.wallet.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
+      closeRechargeModal();
+    }
+
+    // تشغيل الخريطة عند تحميل الصفحة
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+    });
+  </script>
+</body>
+</html>
