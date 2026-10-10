@@ -36,6 +36,10 @@
     </div>
 
     <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <a href="/client.html" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-md">
+        <span>📱</span> <span>تطبيق الزبون المباشر</span>
+      </a>
+
       <a href="/index.html" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
         <span>👑</span> <span>لوحة الإدارة</span>
       </a>
@@ -68,6 +72,9 @@
         <button onclick="selectPresetRoute('hydra_benaknoun')" class="bg-slate-800/90 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 text-[11px] whitespace-nowrap">
           📍 حيدرة ⬅️ بن عكنون (5 كم)
         </button>
+        <button onclick="selectPresetRoute('dely_cheraga')" class="bg-slate-800/90 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 text-[11px] whitespace-nowrap">
+          📍 دالي ابراهيم ⬅️ الشراقة (4 كم)
+        </button>
       </div>
     </div>
   </div>
@@ -85,10 +92,113 @@
           <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md font-semibold">جاهز للطلب</span>
         </div>
 
-        <p class="text-xs text-slate-300 mb-2 leading-relaxed">
-          انقر على الخريطة لتحديد نقطة الاستلام ثم التسليم، أو اختر مساراً جاهزاً:
-        </p>
+        <!-- أزرار اختيار وضع النقر على الخريطة -->
+        <div class="grid grid-cols-2 gap-1.5 mb-3 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
+          <button type="button" id="btn-mode-pickup" onclick="setMapPinMode('pickup')" class="py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+            <span>🟢</span> مكان الاستلام
+          </button>
+          <button type="button" id="btn-mode-dropoff" onclick="setMapPinMode('dropoff')" class="py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            <span>🔴</span> وجهة التسليم
+          </button>
+        </div>
 
+        <!-- 1. مكان استلام الطرد -->
+        <div class="mb-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+              <span>🟢</span> من (مكان استلام الطرد):
+            </label>
+            <span id="pickup-coords-badge" class="text-[9px] font-mono text-slate-400">36.7725, 3.0588</span>
+          </div>
+          <div class="relative flex gap-1">
+            <input type="text" id="input-pickup-address" value="البريد المركزي، الجزائر العاصمة"
+              placeholder="اكتب مكان الاستلام..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-400" />
+            <button type="button" onclick="setMapPinMode('pickup')" title="تحديد بالخريطة" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-2.5 rounded-xl text-xs font-bold transition">
+              📍
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. وجهة تسليم الطرد (Destination - وين يدي الكولي) -->
+        <div class="mb-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-rose-400 flex items-center gap-1">
+              <span>🔴</span> إلى (وجهة تسليم الطرد / Destination):
+            </label>
+            <span id="dropoff-coords-badge" class="text-[9px] font-mono text-slate-400">36.7167, 3.1833</span>
+          </div>
+          <div class="relative flex gap-1">
+            <input type="text" id="input-dropoff-address" value="باب الزوار، الجزائر"
+              placeholder="اكتب وجهة التسليم (مثال: باب الزوار، وهران، دالي ابراهيم...)"
+              onkeydown="if(event.key==='Enter') searchDestination(this.value)"
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-rose-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+            <button type="button" onclick="searchDestination(document.getElementById('input-dropoff-address').value)" title="بحث عن العنوان" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-2.5 rounded-xl text-xs font-bold transition">
+              🔍
+            </button>
+          </div>
+
+          <!-- وجهات سريعة جاهزة بنقرة واحدة -->
+          <div class="pt-1">
+            <div class="text-[10px] text-slate-400 mb-1 flex items-center justify-between">
+              <span>وجهات سريعة شائعة:</span>
+              <span class="text-rose-400 text-[9px]">انقر للاختيار الفوري ⚡</span>
+            </div>
+            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
+              <button type="button" onclick="setQuickDestination('باب الزوار، الجزائر', 36.7167, 3.1833)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 باب الزوار
+              </button>
+              <button type="button" onclick="setQuickDestination('حيدرة، الجزائر', 36.7431, 3.0422)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 حيدرة
+              </button>
+              <button type="button" onclick="setQuickDestination('بن عكنون، الجزائر', 36.7578, 3.0139)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 بن عكنون
+              </button>
+              <button type="button" onclick="setQuickDestination('دالي ابراهيم، الجزائر', 36.7512, 2.9866)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 دالي ابراهيم
+              </button>
+              <button type="button" onclick="setQuickDestination('الشراقة، الجزائر', 36.7681, 2.9555)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 الشراقة
+              </button>
+              <button type="button" onclick="setQuickDestination('القبة، الجزائر', 36.7289, 3.0789)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 القبة
+              </button>
+              <button type="button" onclick="setQuickDestination('الرويبة، الجزائر', 36.7369, 3.2842)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 الرويبة
+              </button>
+              <button type="button" onclick="setQuickDestination('بئر مراد رايس، الجزائر', 36.7350, 3.0494)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 بئر مراد رايس
+              </button>
+              <button type="button" onclick="setQuickDestination('زرالدة، الجزائر', 36.7156, 2.8425)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 زرالدة
+              </button>
+              <button type="button" onclick="setQuickDestination('البليدة، الجزائر', 36.4700, 2.8300)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 البليدة
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. تفاصيل الطرد (Colis) وملاحظات الشوفور -->
+        <div class="mb-3 space-y-1.5 pt-2 border-t border-slate-800">
+          <label class="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+            <span>📦</span> تفاصيل الطرد (Colis):
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <select id="select-parcel-type" class="bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-400">
+              <option value="طرد وعلبة (Colis)">📦 طرد وعلبة</option>
+              <option value="وثائق وملفات (Documents)">📄 وثائق وملفات</option>
+              <option value="أكل ومأكولات (Food)">🍔 أكل ومأكولات</option>
+              <option value="هاتف وإلكترونيات (Électronique)">📱 هاتف وإلكترونيات</option>
+              <option value="أدوية وصيدلية (Médicaments)">💊 أدوية وصيدلية</option>
+              <option value="مشتريات وملابس (Achats)">🛍️ مشتريات وملابس</option>
+            </select>
+            <input type="text" id="input-parcel-notes" placeholder="ملاحظة للشوفور أو رقم المستلم"
+              class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+          </div>
+        </div>
+
+        <!-- 4. بطاقة حساب المسافة والسعر التقديري -->
         <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-1.5 text-xs mb-3">
           <div class="flex justify-between">
             <span class="text-slate-400">المسافة المقدرة:</span>
@@ -100,8 +210,8 @@
           </div>
         </div>
 
-        <button id="btn-create-order" onclick="createOrder()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
-          <span>📦</span> إرسال طلب التوصيل (Envoyer)
+        <button id="btn-create-order" onclick="createOrder()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+          <span>📦</span> تأكيد وإرسال طلب التوصيل (Envoyer)
         </button>
       </div>
 
@@ -199,10 +309,13 @@
 
       <!-- بطاقة تنبيه الطلب الوارد للسائق -->
       <div id="driver-pending-card" class="glass-card rounded-2xl p-4 border-amber-500/50 bg-amber-950/20 hidden animate-pulse">
-        <div class="text-xs font-bold text-amber-400 mb-1 flex items-center gap-1">
-          <span>🔔</span> طلب توصيل جديد في محيطك!
+        <div class="text-xs font-bold text-amber-400 mb-2 flex items-center justify-between">
+          <span class="flex items-center gap-1"><span>🔔</span> طلب توصيل جديد في محيطك!</span>
+          <span id="driver-order-price-badge" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-mono font-bold">-- دج</span>
         </div>
-        <p id="driver-order-info" class="text-xs text-slate-200 mb-3 font-semibold">من الجزائر الوسطى ➡️ باب الزوار</p>
+        <div id="driver-order-info" class="text-xs text-slate-200 mb-3 space-y-1.5 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+          من الجزائر الوسطى ➡️ باب الزوار
+        </div>
         <button onclick="acceptDriverOrder()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-1">
           <span>✅</span> قبول الطلب (Accepter la course)
         </button>
@@ -254,6 +367,8 @@
     let selectedDriver = null;
     let pickupPoint = null, dropoffPoint = null;
     let pickupMarker = null, dropoffMarker = null, driverMarker = null;
+    let routePolyline = null;
+    let activeMapPinMode = 'dropoff'; // 'dropoff' or 'pickup'
     let currentOrderId = null;
     let socket = null;
     let autoSimTimer = null;
@@ -272,49 +387,134 @@
       iconAnchor: [17, 17]
     });
 
-    // 2. النقر على الخريطة
-    map.on('click', function(e) {
-      if (!pickupPoint) {
-        setPickup(e.latlng, 'نقطة الاستلام المختارة');
-      } else if (!dropoffPoint) {
-        setDropoff(e.latlng, 'نقطة التسليم المختارة');
+    const pickupIcon = L.divIcon({
+      html: '<div style="background:#10b981;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px rgba(16,185,129,0.7);border:2px solid #fff;cursor:grab;">🟢</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    const dropoffIcon = L.divIcon({
+      html: '<div style="background:#ef4444;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px rgba(239,68,68,0.7);border:2px solid #fff;cursor:grab;">🔴</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    // 2. اختيار وضع النقر على الخريطة
+    function setMapPinMode(mode) {
+      activeMapPinMode = mode;
+      const btnPickup = document.getElementById('btn-mode-pickup');
+      const btnDropoff = document.getElementById('btn-mode-dropoff');
+      if (mode === 'pickup') {
+        btnPickup.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
+        btnDropoff.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200';
+        logClient('🟢 وضع الخريطة: انقر الآن على أي نقطة لتحديد مكان استلام الطرد.');
       } else {
-        // إعادة الضبط
-        resetRoute();
-        setPickup(e.latlng, 'نقطة الاستلام الجديدة');
+        btnDropoff.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold';
+        btnPickup.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200';
+        logClient('🔴 وضع الخريطة: انقر الآن على أي نقطة لتحديد وجهة تسليم الطرد (Destination).');
+      }
+    }
+
+    // النقر على الخريطة لتحديد مكان الاستلام أو وجهة التسليم
+    map.on('click', function(e) {
+      if (activeMapPinMode === 'pickup') {
+        setPickup(e.latlng, 'نقطة الاستلام المختارة');
+        // الانتقال تلقائياً لوضع الوجهة لتسهيل التجربة
+        setMapPinMode('dropoff');
+      } else {
+        setDropoff(e.latlng, 'وجهة التسليم (Destination)');
       }
     });
 
-    function setPickup(latlng, label = 'نقطة الاستلام') {
+    function updateCoordsBadges() {
+      if (pickupPoint) {
+        document.getElementById('pickup-coords-badge').innerText = `${pickupPoint.lat.toFixed(4)}, ${pickupPoint.lng.toFixed(4)}`;
+      }
+      if (dropoffPoint) {
+        document.getElementById('dropoff-coords-badge').innerText = `${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)}`;
+      }
+    }
+
+    function setPickup(latlng, label = 'مكان الاستلام') {
       pickupPoint = latlng;
       if (pickupMarker) map.removeLayer(pickupMarker);
-      pickupMarker = L.marker(pickupPoint).addTo(map).bindPopup(`🟢 ${label}`).openPopup();
-      logClient(`تم تحديد نقطة الاستلام: ${pickupPoint.lat.toFixed(4)}, ${pickupPoint.lng.toFixed(4)}`);
-      updateCalculatedPrice();
+
+      pickupMarker = L.marker(pickupPoint, { icon: pickupIcon, draggable: true }).addTo(map)
+        .bindPopup(`🟢 <b>${label}</b><br><span style="font-size:11px;color:#94a3b8">اسحب لتعديل مكان الاستلام</span>`).openPopup();
+
+      pickupMarker.on('dragend', function(ev) {
+        pickupPoint = ev.target.getLatLng();
+        updateCoordsBadges();
+        updateRoute();
+        logClient(`🟢 تم تعديل مكان الاستلام بالسحب إلى: ${pickupPoint.lat.toFixed(4)}, ${pickupPoint.lng.toFixed(4)}`);
+      });
+
+      updateCoordsBadges();
+      updateRoute();
+      logClient(`🟢 تم تحديد مكان استلام الطرد: ${label} (${pickupPoint.lat.toFixed(4)}, ${pickupPoint.lng.toFixed(4)})`);
     }
 
-    function setDropoff(latlng, label = 'نقطة التسليم') {
+    function setDropoff(latlng, label = 'وجهة التسليم') {
       dropoffPoint = latlng;
       if (dropoffMarker) map.removeLayer(dropoffMarker);
-      dropoffMarker = L.marker(dropoffPoint).addTo(map).bindPopup(`🔴 ${label}`).openPopup();
-      logClient(`تم تحديد نقطة التسليم: ${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)}`);
-      updateCalculatedPrice();
+
+      dropoffMarker = L.marker(dropoffPoint, { icon: dropoffIcon, draggable: true }).addTo(map)
+        .bindPopup(`🔴 <b>${label}</b><br><span style="font-size:11px;color:#94a3b8">اسحب لتعديل وجهة التسليم</span>`).openPopup();
+
+      dropoffMarker.on('dragend', function(ev) {
+        dropoffPoint = ev.target.getLatLng();
+        updateCoordsBadges();
+        updateRoute();
+        logClient(`🔴 تم تعديل وجهة التسليم (Destination) بالسحب إلى: ${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)}`);
+      });
+
+      updateCoordsBadges();
+      updateRoute();
+      logClient(`🔴 تم تحديد وجهة التسليم (Destination): ${label} (${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)})`);
       document.getElementById('btn-create-order').disabled = false;
     }
 
-    function resetRoute() {
-      if (pickupMarker) map.removeLayer(pickupMarker);
-      if (dropoffMarker) map.removeLayer(dropoffMarker);
-      if (driverMarker) map.removeLayer(driverMarker);
-      pickupPoint = null;
-      dropoffPoint = null;
-      document.getElementById('calc-distance').innerText = '0.00 كم';
-      document.getElementById('calc-price').innerText = '0.00 دج';
-      document.getElementById('btn-create-order').disabled = false;
+    function setQuickDestination(address, lat, lng) {
+      document.getElementById('input-dropoff-address').value = address;
+      setDropoff(L.latLng(lat, lng), address);
+      map.setView([lat, lng], 13);
+      logClient(`🎯 تم اختيار الوجهة السريعة: ${address}`);
     }
 
-    function updateCalculatedPrice() {
+    async function searchDestination(query) {
+      if (!query || query.trim().length < 2) return;
+      const q = query.trim();
+      logClient(`🔍 جاري البحث التلقائي عن الوجهة: "${q}"...`);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Algeria')}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          document.getElementById('input-dropoff-address').value = q;
+          setDropoff(L.latLng(lat, lon), q);
+          map.setView([lat, lon], 14);
+          logClient(`🎯 تم العثور على الوجهة "${q}" وتثبيتها على الخريطة!`);
+        } else {
+          logClient(`⚠️ تعذر العثور التلقائي على إحداثيات "${q}". انقر مباشرة على الخريطة لتثبيتها.`);
+        }
+      } catch (e) {
+        logClient(`⚠️ تعذر البحث: ${e.message}`);
+      }
+    }
+
+    function updateRoute() {
       if (pickupPoint && dropoffPoint) {
+        if (routePolyline) map.removeLayer(routePolyline);
+        routePolyline = L.polyline([pickupPoint, dropoffPoint], {
+          color: '#f59e0b',
+          weight: 4,
+          dashArray: '8, 8',
+          opacity: 0.85
+        }).addTo(map);
+
         const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
         const price = (500 + parseFloat(distKm) * 150).toFixed(2);
         document.getElementById('calc-distance').innerText = `${distKm} كم`;
@@ -322,15 +522,39 @@
       }
     }
 
+    function resetRoute() {
+      if (pickupMarker) map.removeLayer(pickupMarker);
+      if (dropoffMarker) map.removeLayer(dropoffMarker);
+      if (driverMarker) map.removeLayer(driverMarker);
+      if (routePolyline) map.removeLayer(routePolyline);
+      pickupPoint = null;
+      dropoffPoint = null;
+      routePolyline = null;
+      document.getElementById('calc-distance').innerText = '0.00 كم';
+      document.getElementById('calc-price').innerText = '0.00 دج';
+      document.getElementById('pickup-coords-badge').innerText = '--, --';
+      document.getElementById('dropoff-coords-badge').innerText = '--, --';
+      document.getElementById('btn-create-order').disabled = false;
+    }
+
     // مسارات محددة مسبقاً
     function selectPresetRoute(preset) {
       resetRoute();
       if (preset === 'alger_babezzouar') {
-        setPickup(L.latLng(36.7725, 3.0588), 'البريد المركزي، الجزائر');
+        document.getElementById('input-pickup-address').value = 'البريد المركزي، الجزائر العاصمة';
+        document.getElementById('input-dropoff-address').value = 'باب الزوار، الجزائر';
+        setPickup(L.latLng(36.7725, 3.0588), 'البريد المركزي، الجزائر العاصمة');
         setDropoff(L.latLng(36.7167, 3.1833), 'باب الزوار، الجزائر');
       } else if (preset === 'hydra_benaknoun') {
-        setPickup(L.latLng(36.7431, 3.0422), 'حيدرة');
-        setDropoff(L.latLng(36.7578, 3.0139), 'بن عكنون');
+        document.getElementById('input-pickup-address').value = 'حيدرة، الجزائر';
+        document.getElementById('input-dropoff-address').value = 'بن عكنون، الجزائر';
+        setPickup(L.latLng(36.7431, 3.0422), 'حيدرة، الجزائر');
+        setDropoff(L.latLng(36.7578, 3.0139), 'بن عكنون، الجزائر');
+      } else if (preset === 'dely_cheraga') {
+        document.getElementById('input-pickup-address').value = 'دالي ابراهيم، الجزائر';
+        document.getElementById('input-dropoff-address').value = 'الشراقة، الجزائر';
+        setPickup(L.latLng(36.7512, 2.9866), 'دالي ابراهيم، الجزائر');
+        setDropoff(L.latLng(36.7681, 2.9555), 'الشراقة، الجزائر');
       }
       map.fitBounds([pickupPoint, dropoffPoint], { padding: [50, 50] });
     }
@@ -358,6 +582,9 @@
 
       // ج. الاتصال بـ Socket.IO للرادار المباشر
       connectSockets();
+
+      // د. تهيئة المسار الأولي على الخريطة
+      selectPresetRoute('alger_babezzouar');
     }
 
     // جلب الشوفيرة الحقيقيين المسجلين في النظام
@@ -459,10 +686,23 @@
         });
 
         socket.on('new_order_available', (order) => {
-          logDriver(`🔔 طلب جديد متاح في محيطك: ${order.pickup_address} (${order.total_price} دج)`);
+          logDriver(`🔔 طلب جديد متاح في محيطك: إلى الوجهة "${order.dropoff_address || 'وجهة التسليم'}" (${order.total_price} دج)`);
           currentOrderId = order.orderId;
           document.getElementById('driver-pending-card').classList.remove('hidden');
-          document.getElementById('driver-order-info').innerText = `${order.pickup_address} ➡️ ${order.total_price} دج`;
+          const priceBadge = document.getElementById('driver-order-price-badge');
+          if (priceBadge) priceBadge.innerText = `${order.total_price} دج`;
+
+          document.getElementById('driver-order-info').innerHTML = `
+            <div class="space-y-1">
+              <div><span class="text-emerald-400 font-bold">🟢 من:</span> ${order.pickup_address}</div>
+              <div><span class="text-rose-400 font-bold">🔴 إلى (الوجهة):</span> <strong>${order.dropoff_address}</strong></div>
+              <div class="text-[11px] text-slate-300">📦 ${order.notes || 'طرد عادي'}</div>
+              <div class="text-amber-400 font-bold pt-1 border-t border-slate-800 flex justify-between">
+                <span>المسافة: ${order.distance_km} كم</span>
+                <span>السعر: ${order.total_price} دج</span>
+              </div>
+            </div>
+          `;
         });
 
         socket.on('order_status_changed', (data) => {
@@ -484,7 +724,7 @@
       } catch (e) {}
     }
 
-    // 4. إنشاء الطلب
+    // 4. إنشاء الطلب بالوجهة وتفاصيل الطرد الحقيقية
     async function createOrder() {
       if (!pickupPoint || !dropoffPoint) {
         selectPresetRoute('alger_babezzouar');
@@ -495,12 +735,15 @@
         await init();
       }
 
-      const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
-      const price = (500 + parseFloat(distKm) * 150).toFixed(2);
+      const pickupAddr = document.getElementById('input-pickup-address').value.trim() || 'مكان الاستلام';
+      const dropoffAddr = document.getElementById('input-dropoff-address').value.trim() || 'وجهة التسليم (Destination)';
+      const parcelType = document.getElementById('select-parcel-type').value;
+      const parcelNotes = document.getElementById('input-parcel-notes').value.trim();
+      const fullNotes = `[طرد: ${parcelType}] ${parcelNotes ? '- ' + parcelNotes : ''}`.trim();
 
       const btn = document.getElementById('btn-create-order');
       btn.disabled = true;
-      btn.innerText = '⏳ جاري إرسال الطلب...';
+      btn.innerText = '⏳ جاري إرسال الطلب للباك إند...';
 
       try {
         const res = await fetch(API_BASE + '/orders', {
@@ -510,13 +753,13 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            pickup_address: 'البريد المركزي، الجزائر',
+            pickup_address: pickupAddr,
             pickup_lat: pickupPoint.lat,
             pickup_lng: pickupPoint.lng,
-            dropoff_address: 'باب الزوار، الجزائر',
+            dropoff_address: dropoffAddr,
             dropoff_lat: dropoffPoint.lat,
             dropoff_lng: dropoffPoint.lng,
-            notes: 'طلب توصيل من المحاكي الحقيقي'
+            notes: fullNotes
           })
         }).then(r => r.json());
 
@@ -528,12 +771,25 @@
           document.getElementById('active-order-id').innerText = '#' + currentOrderId.slice(0, 8);
           document.getElementById('active-order-status').innerText = 'pending';
           if (socket) socket.emit('join_order', { orderId: currentOrderId });
-          logClient(`🚀 تم إنشاء الطلب الحقيقي في قاعدة البيانات: ${order.total_price} دج (#${currentOrderId.slice(0, 8)})`);
+          logClient(`🚀 تم إرسال الطلب بنجاح: من "${pickupAddr}" ➡️ إلى الوجهة "${dropoffAddr}" (${order.total_price} دج)`);
 
           // إظهار تنبيه الطلب فوراً للسائق المختار
           document.getElementById('driver-pending-card').classList.remove('hidden');
-          document.getElementById('driver-order-info').innerText = `${order.pickup_address} ➡️ ${order.dropoff_address} (${order.total_price} دج)`;
-          logDriver(`🔔 وصل طلب جديد إلى السائق "${selectedDriver?.name || 'السائق'}": ${order.total_price} دج`);
+          const priceBadge = document.getElementById('driver-order-price-badge');
+          if (priceBadge) priceBadge.innerText = `${order.total_price} دج`;
+
+          document.getElementById('driver-order-info').innerHTML = `
+            <div class="space-y-1">
+              <div><span class="text-emerald-400 font-bold">🟢 من:</span> ${order.pickup_address}</div>
+              <div><span class="text-rose-400 font-bold">🔴 إلى (الوجهة):</span> <strong>${order.dropoff_address}</strong></div>
+              <div class="text-[11px] text-slate-300">📦 ${order.notes || 'طرد عادي'}</div>
+              <div class="text-amber-400 font-bold pt-1 border-t border-slate-800 flex justify-between">
+                <span>المسافة: ${order.distance_km} كم</span>
+                <span>السعر: ${order.total_price} دج</span>
+              </div>
+            </div>
+          `;
+          logDriver(`🔔 وصل طلب جديد إلى السائق "${selectedDriver?.name || 'السائق'}": توصيل إلى "${order.dropoff_address}" (${order.total_price} دج)`);
         } else {
           logClient('❌ فشل إنشاء الطلب: ' + (res.message || 'خطأ غير متوقع'));
         }
@@ -541,7 +797,7 @@
         logClient('❌ خطأ في الاتصال بالخادم: ' + e.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<span>📦</span> إرسال طلب التوصيل (Envoyer)';
+        btn.innerHTML = '<span>📦</span> تأكيد وإرسال طلب التوصيل (Envoyer)';
       }
     }
 

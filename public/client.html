@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛵 لطيف موطو إكسبريس | طلب توصيل طرد (Client App)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Socket.io CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #f8fafc; }
+    .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #map { width: 100%; height: 100%; border-radius: 1rem; z-index: 10; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- الشريط العلوي -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 gap-2">
+    <div class="flex items-center gap-3">
+      <div class="bg-gradient-to-tr from-amber-500 to-amber-600 text-slate-950 font-black p-2 rounded-xl text-xl shadow-lg shadow-amber-500/20">
+        🛵
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">
+          لطيف موطو إكسبريس (Latif Moto)
+        </h1>
+        <p class="text-[11px] text-slate-400">تطبيق الزبون لطلب توصيل الطرود والطلبات السريعة 🇩🇿</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+      <a href="/simulator.html" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/30 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+        <span>🎮</span> <span>المحاكي المباشر</span>
+      </a>
+      <a href="/index.html" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+        <span>👑</span> <span>لوحة الإدارة</span>
+      </a>
+
+      <div class="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700 text-xs">
+        <span id="socket-dot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="socket-status" class="text-slate-300 font-medium">سيرفر متصل 🟢</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- المحتوى الرئيسي المتجاوب -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 flex flex-col lg:flex-row gap-4">
+
+    <!-- العمود الأيمن: استمارة طلب التوصيل وتحديد الوجهة -->
+    <div class="w-full lg:w-[420px] flex flex-col gap-3 order-2 lg:order-1">
+      
+      <!-- بطاقة تحديد المسار والوجهة -->
+      <div id="order-form-card" class="glass-card rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+          <h2 class="font-bold text-sm text-amber-400 flex items-center gap-1.5">
+            <span>📦</span> طلب توصيل طرد جديد
+          </h2>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-md font-bold">دفع نقداً كاش</span>
+        </div>
+
+        <!-- أزرار اختيار وضع النقر على الخريطة -->
+        <div class="grid grid-cols-2 gap-1.5 mb-3 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px] font-bold">
+          <button type="button" id="btn-mode-pickup" onclick="setMapPinMode('pickup')" class="py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
+            <span>🟢</span> مكان الاستلام
+          </button>
+          <button type="button" id="btn-mode-dropoff" onclick="setMapPinMode('dropoff')" class="py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            <span>🔴</span> وجهة التسليم
+          </button>
+        </div>
+
+        <!-- 1. مكان استلام الطرد -->
+        <div class="mb-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-emerald-400 flex items-center gap-1">
+              <span>🟢</span> مكان استلام الطرد (Point de départ):
+            </label>
+            <button type="button" onclick="getCurrentLocation()" class="text-[10px] text-sky-400 hover:text-sky-300 flex items-center gap-0.5 font-bold">
+              <span>🎯</span> موقعي الحالي
+            </button>
+          </div>
+          <div class="relative flex gap-1">
+            <input type="text" id="input-pickup-address" value="البريد المركزي، الجزائر العاصمة"
+              placeholder="اكتب عنوان استلام الطرد..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-400" />
+            <button type="button" onclick="setMapPinMode('pickup')" title="تحديد بالخريطة" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 px-3 rounded-xl text-xs font-bold transition">
+              📍
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. وجهة تسليم الطرد (Destination - وين يدي الكولي) -->
+        <div class="mb-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-rose-400 flex items-center gap-1">
+              <span>🔴</span> وجهة تسليم الطرد (Destination / وين يدي الكولي):
+            </label>
+            <span id="dropoff-coords-badge" class="text-[9px] font-mono text-slate-400">36.7167, 3.1833</span>
+          </div>
+          <div class="relative flex gap-1">
+            <input type="text" id="input-dropoff-address" value="باب الزوار، الجزائر"
+              placeholder="اكتب وجهة التسليم (مثال: باب الزوار، وهران، دالي ابراهيم...)"
+              onkeydown="if(event.key==='Enter') searchDestination(this.value)"
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-rose-200 placeholder-slate-500 focus:outline-none focus:border-rose-400" />
+            <button type="button" onclick="searchDestination(document.getElementById('input-dropoff-address').value)" title="بحث عن العنوان" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-3 rounded-xl text-xs font-bold transition">
+              🔍
+            </button>
+          </div>
+
+          <!-- وجهات سريعة جاهزة بنقرة واحدة -->
+          <div class="pt-1">
+            <div class="text-[10px] text-slate-400 mb-1 flex items-center justify-between">
+              <span>وجهات سريعة شائعة:</span>
+              <span class="text-rose-400 text-[9px]">انقر للاختيار الفوري ⚡</span>
+            </div>
+            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-0.5">
+              <button type="button" onclick="setQuickDestination('باب الزوار، الجزائر', 36.7167, 3.1833)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 باب الزوار
+              </button>
+              <button type="button" onclick="setQuickDestination('حيدرة، الجزائر', 36.7431, 3.0422)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 حيدرة
+              </button>
+              <button type="button" onclick="setQuickDestination('بن عكنون، الجزائر', 36.7578, 3.0139)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 بن عكنون
+              </button>
+              <button type="button" onclick="setQuickDestination('دالي ابراهيم، الجزائر', 36.7512, 2.9866)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 دالي ابراهيم
+              </button>
+              <button type="button" onclick="setQuickDestination('الشراقة، الجزائر', 36.7681, 2.9555)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 الشراقة
+              </button>
+              <button type="button" onclick="setQuickDestination('القبة، الجزائر', 36.7289, 3.0789)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 القبة
+              </button>
+              <button type="button" onclick="setQuickDestination('الرويبة، الجزائر', 36.7369, 3.2842)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 الرويبة
+              </button>
+              <button type="button" onclick="setQuickDestination('بئر مراد رايس، الجزائر', 36.7350, 3.0494)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 بئر مراد رايس
+              </button>
+              <button type="button" onclick="setQuickDestination('زرالدة، الجزائر', 36.7156, 2.8425)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 زرالدة
+              </button>
+              <button type="button" onclick="setQuickDestination('البليدة، الجزائر', 36.4700, 2.8300)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-rose-300 border border-slate-800 hover:border-rose-500/40 text-[10px] px-2 py-0.5 rounded-md transition">
+                📍 البليدة
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. تفاصيل الطرد (Colis) وملاحظات الشوفور -->
+        <div class="mb-3 space-y-1.5 pt-2 border-t border-slate-800">
+          <label class="text-xs font-bold text-amber-400 flex items-center gap-1">
+            <span>📦</span> تفاصيل الطرد (Colis):
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <select id="select-parcel-type" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-400">
+              <option value="طرد وعلبة (Colis)">📦 طرد وعلبة</option>
+              <option value="وثائق وملفات (Documents)">📄 وثائق وملفات</option>
+              <option value="أكل ومأكولات (Food)">🍔 أكل ومأكولات</option>
+              <option value="هاتف وإلكترونيات (Électronique)">📱 هاتف وإلكترونيات</option>
+              <option value="أدوية وصيدلية (Médicaments)">💊 أدوية وصيدلية</option>
+              <option value="مشتريات وملابس (Achats)">🛍️ مشتريات وملابس</option>
+            </select>
+            <input type="text" id="input-recipient-phone" placeholder="هاتف المستلم (اختياري)"
+              class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 font-mono" />
+          </div>
+          <input type="text" id="input-parcel-notes" placeholder="ملاحظة للسائق (مثال: عيطلي كي توصل راني في الباب)"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+        </div>
+
+        <!-- 4. ملخص المسافة والسعر المحسوب -->
+        <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 space-y-2 text-xs mb-3">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">المسافة المقدرة:</span>
+            <span id="calc-distance" class="font-mono font-bold text-amber-400 text-sm">0.00 كم</span>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-slate-800/80">
+            <span class="text-slate-400">السعر الإجمالي:</span>
+            <span id="calc-price" class="font-mono font-extrabold text-emerald-400 text-base">0.00 دج</span>
+          </div>
+        </div>
+
+        <!-- زر الطلب الفوري -->
+        <button id="btn-create-order" onclick="createOrder()" class="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-3 rounded-xl text-sm shadow-xl shadow-amber-500/20 transition flex items-center justify-center gap-2 transform active:scale-95">
+          <span>🛵</span> طلب دراجة نارية للتوصيل الآن
+        </button>
+      </div>
+
+      <!-- بطاقة تتبع الطلب الحالي بعد الإرسال -->
+      <div id="live-tracking-card" class="glass-card rounded-2xl p-4 sm:p-5 hidden border-amber-500/40">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+          <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+            تتبع طلب التوصيل مباشرة
+          </span>
+          <span id="order-status-badge" class="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-md font-mono font-bold">pending</span>
+        </div>
+
+        <div class="space-y-2 text-xs mb-3">
+          <div class="flex justify-between">
+            <span class="text-slate-400">رقم الطلب:</span>
+            <span id="tracking-order-id" class="font-mono text-sky-400 font-bold">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">وجهة التسليم:</span>
+            <span id="tracking-dropoff" class="text-rose-300 font-bold">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">المبلغ المطلوب:</span>
+            <span id="tracking-price" class="font-mono text-emerald-400 font-bold">-- دج</span>
+          </div>
+        </div>
+
+        <!-- معلومات السائق عند قبول الطلب -->
+        <div id="tracking-driver-box" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 space-y-1.5 text-xs mb-3 hidden">
+          <div class="text-[11px] font-bold text-sky-400 flex items-center gap-1 mb-1">
+            <span>🏍️</span> السائق في الطريق إليك:
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">اسم السائق:</span>
+            <span id="tracking-driver-name" class="font-bold text-slate-100">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">الهاتف:</span>
+            <span id="tracking-driver-phone" class="font-mono text-amber-300">--</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">الدراجة / الترقيم:</span>
+            <span id="tracking-driver-plate" class="font-mono font-bold text-slate-200">--</span>
+          </div>
+        </div>
+
+        <!-- تقييم السائق بعد الوصول -->
+        <div id="client-review-box" class="pt-3 border-t border-slate-800 hidden space-y-2">
+          <label class="block text-xs text-slate-300 font-bold">🎉 وصل الطرد! كيف كانت تجربة التوصيل؟</label>
+          <div class="flex gap-1.5">
+            <select id="review-stars-client" class="bg-slate-800 text-xs border border-slate-700 rounded-lg px-2 py-1.5 flex-1">
+              <option value="5">⭐⭐⭐⭐⭐ ممتاز جداً ومحترف</option>
+              <option value="4">⭐⭐⭐⭐ جيد جداً وسريع</option>
+              <option value="3">⭐⭐⭐ متوسط</option>
+            </select>
+            <button onclick="submitClientReview()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-1.5 rounded-lg font-bold">إرسال التقييم</button>
+          </div>
+        </div>
+
+        <!-- زر إلغاء أو طلب جديد -->
+        <button onclick="resetClientApp()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 rounded-xl border border-slate-700 transition mt-2">
+          طلب توصيل طرد جديد ➕
+        </button>
+      </div>
+
+      <!-- سجل التنبيهات المباشر -->
+      <div class="glass-card rounded-2xl p-3 flex flex-col max-h-36">
+        <span class="text-[11px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+          <span>📡</span> الإشعارات المباشرة
+        </span>
+        <div id="client-live-log" class="bg-slate-950/90 rounded-xl p-2 font-mono text-[11px] text-cyan-300 flex-1 overflow-y-auto space-y-1">
+          <div>مرحباً بك! اختر وجهة توصيل الطرد وانقر على زر الطلب.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- العمود الأيسر: خريطة التوصيل التفاعلية -->
+    <div class="flex-1 flex flex-col min-h-[460px] lg:min-h-0 order-1 lg:order-2">
+      <div class="glass-card rounded-2xl p-2 flex-1 flex flex-col relative shadow-2xl">
+        <div id="map"></div>
+        <div class="absolute bottom-4 right-4 z-20 bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-slate-700 text-xs text-slate-200 shadow-xl pointer-events-none flex items-center gap-2">
+          <span>🟢 مكان الاستلام</span>
+          <span>•</span>
+          <span>🔴 وجهة التسليم (Destination)</span>
+          <span>•</span>
+          <span>🏍️ الدراجة النارية</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const CLOUD_API = 'https://mmo-backend-tx2s.onrender.com';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let savedHost = localStorage.getItem('mmo_api_host');
+    if (savedHost && !isLocal && (savedHost.includes('localhost') || savedHost.includes('trycloudflare'))) {
+      localStorage.removeItem('mmo_api_host');
+      savedHost = null;
+    }
+    const SERVER_HOST = savedHost || (isLocal ? 'http://localhost:3000' : CLOUD_API);
+    const API_BASE = `${SERVER_HOST}/api/v1`;
+    const SOCKET_URL = `${SERVER_HOST}/tracking`;
+
+    let clientToken = '';
+    let pickupPoint = null, dropoffPoint = null;
+    let pickupMarker = null, dropoffMarker = null, driverMarker = null;
+    let routePolyline = null;
+    let activeMapPinMode = 'dropoff';
+    let currentOrderId = null;
+    let socket = null;
+
+    // 1. تهيئة الخريطة
+    const map = L.map('map').setView([36.7538, 3.0588], 12);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri World Map'
+    }).addTo(map);
+
+    const motoIcon = L.divIcon({
+      html: '<div style="background:#f59e0b;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 12px rgba(245,158,11,0.7);border:2px solid #fff;">🏍️</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    const pickupIcon = L.divIcon({
+      html: '<div style="background:#10b981;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px rgba(16,185,129,0.7);border:2px solid #fff;cursor:grab;">🟢</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    const dropoffIcon = L.divIcon({
+      html: '<div style="background:#ef4444;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px rgba(239,68,68,0.7);border:2px solid #fff;cursor:grab;">🔴</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    function log(msg) {
+      const box = document.getElementById('client-live-log');
+      const time = new Date().toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      box.innerHTML += `<div><span class="text-slate-500">[${time}]</span> ${msg}</div>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function setMapPinMode(mode) {
+      activeMapPinMode = mode;
+      const btnPickup = document.getElementById('btn-mode-pickup');
+      const btnDropoff = document.getElementById('btn-mode-dropoff');
+      if (mode === 'pickup') {
+        btnPickup.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold';
+        btnDropoff.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200';
+        log('🟢 انقر على الخريطة لتحديد مكان استلام الطرد.');
+      } else {
+        btnDropoff.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold';
+        btnPickup.className = 'py-1.5 px-2 rounded-lg transition flex items-center justify-center gap-1 text-slate-400 hover:text-slate-200';
+        log('🔴 انقر على الخريطة لتحديد وجهة تسليم الطرد (Destination).');
+      }
+    }
+
+    map.on('click', function(e) {
+      if (activeMapPinMode === 'pickup') {
+        setPickup(e.latlng, 'نقطة الاستلام المختارة');
+        setMapPinMode('dropoff');
+      } else {
+        setDropoff(e.latlng, 'وجهة التسليم (Destination)');
+      }
+    });
+
+    function setPickup(latlng, label = 'مكان الاستلام') {
+      pickupPoint = latlng;
+      if (pickupMarker) map.removeLayer(pickupMarker);
+      pickupMarker = L.marker(pickupPoint, { icon: pickupIcon, draggable: true }).addTo(map)
+        .bindPopup(`🟢 <b>${label}</b><br><span style="font-size:11px;color:#94a3b8">اسحب لتعديل مكان الاستلام</span>`).openPopup();
+
+      pickupMarker.on('dragend', function(ev) {
+        pickupPoint = ev.target.getLatLng();
+        updateRoute();
+        log(`🟢 تم تعديل مكان الاستلام: ${pickupPoint.lat.toFixed(4)}, ${pickupPoint.lng.toFixed(4)}`);
+      });
+
+      updateRoute();
+      log(`🟢 تم تحديد مكان الاستلام: ${label}`);
+    }
+
+    function setDropoff(latlng, label = 'وجهة التسليم') {
+      dropoffPoint = latlng;
+      if (dropoffMarker) map.removeLayer(dropoffMarker);
+      dropoffMarker = L.marker(dropoffPoint, { icon: dropoffIcon, draggable: true }).addTo(map)
+        .bindPopup(`🔴 <b>${label}</b><br><span style="font-size:11px;color:#94a3b8">اسحب لتعديل وجهة التسليم</span>`).openPopup();
+
+      dropoffMarker.on('dragend', function(ev) {
+        dropoffPoint = ev.target.getLatLng();
+        updateRoute();
+        log(`🔴 تم تعديل وجهة التسليم بالسحب: ${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)}`);
+      });
+
+      document.getElementById('dropoff-coords-badge').innerText = `${dropoffPoint.lat.toFixed(4)}, ${dropoffPoint.lng.toFixed(4)}`;
+      updateRoute();
+      log(`🔴 تم تحديد وجهة التسليم: ${label}`);
+    }
+
+    function setQuickDestination(address, lat, lng) {
+      document.getElementById('input-dropoff-address').value = address;
+      setDropoff(L.latLng(lat, lng), address);
+      map.setView([lat, lng], 13);
+      log(`🎯 تم اختيار الوجهة: ${address}`);
+    }
+
+    async function searchDestination(query) {
+      if (!query || query.trim().length < 2) return;
+      const q = query.trim();
+      log(`🔍 جاري البحث عن الوجهة: "${q}"...`);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ', Algeria')}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          document.getElementById('input-dropoff-address').value = q;
+          setDropoff(L.latLng(lat, lon), q);
+          map.setView([lat, lon], 14);
+          log(`🎯 تم تثبيت الوجهة "${q}" على الخريطة!`);
+        } else {
+          log(`⚠️ تعذر العثور التلقائي على "${q}". يرجى النقر على الخريطة.`);
+        }
+      } catch (e) {
+        log(`⚠️ خطأ في البحث: ${e.message}`);
+      }
+    }
+
+    function updateRoute() {
+      if (pickupPoint && dropoffPoint) {
+        if (routePolyline) map.removeLayer(routePolyline);
+        routePolyline = L.polyline([pickupPoint, dropoffPoint], {
+          color: '#f59e0b',
+          weight: 4,
+          dashArray: '8, 8',
+          opacity: 0.85
+        }).addTo(map);
+
+        const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
+        const price = (500 + parseFloat(distKm) * 150).toFixed(2);
+        document.getElementById('calc-distance').innerText = `${distKm} كم`;
+        document.getElementById('calc-price').innerText = `${price} دج`;
+      }
+    }
+
+    function getCurrentLocation() {
+      if (!navigator.geolocation) {
+        alert('المتصفح لا يدعم تحديد الموقع GPS.');
+        return;
+      }
+      log('📡 جاري جلب موقعك الحالي عبر GPS...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          document.getElementById('input-pickup-address').value = 'موقعي الحالي (GPS)';
+          setPickup(L.latLng(lat, lng), 'موقعي الحالي');
+          map.setView([lat, lng], 14);
+          log(`✅ تم تحديد موقعك الحالي: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        },
+        (err) => {
+          log(`⚠️ تعذر جلب الموقع عبر GPS: ${err.message}. يرجى التحديد على الخريطة.`);
+        }
+      );
+    }
+
+    // تهيئة الجلسة والسوكيت
+    async function init() {
+      try {
+        const cRes = await fetch(`${API_BASE}/auth/simulator/client-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        }).then(r => r.json());
+
+        const clientData = cRes.data || cRes;
+        if (clientData?.access_token) {
+          clientToken = clientData.access_token;
+          log(`✅ متصل بالحساب: ${clientData.client?.name || 'زبون'}`);
+        }
+      } catch (err) {
+        log('⚠️ جاري العمل بالوضع المباشر.');
+      }
+
+      // مسار افتراضي
+      setPickup(L.latLng(36.7725, 3.0588), 'البريد المركزي، الجزائر العاصمة');
+      setDropoff(L.latLng(36.7167, 3.1833), 'باب الزوار، الجزائر');
+      map.fitBounds([pickupPoint, dropoffPoint], { padding: [50, 50] });
+
+      // الاتصال بسيرفر التتبع الحي
+      try {
+        socket = io(SOCKET_URL);
+        socket.on('connect', () => {
+          document.getElementById('socket-status').innerText = 'سيرفر متصل 🟢';
+        });
+
+        socket.on('order_status_changed', (data) => {
+          log(`📦 تحديث حالة طلبك: ${data.status}`);
+          const badge = document.getElementById('order-status-badge');
+          if (badge) badge.innerText = data.status;
+
+          if (data.status === 'accepted') {
+            document.getElementById('tracking-driver-box').classList.remove('hidden');
+            log('🏍️ قبل السائق طلبك وهو في طريقه لاستلام الطرد!');
+          } else if (data.status === 'picked_up') {
+            log('📦 تم استلام الطرد من نقطة الانطلاق، السائق متجه نحو الوجهة!');
+          } else if (data.status === 'delivered') {
+            document.getElementById('client-review-box').classList.remove('hidden');
+            log('🎉 تم تسليم الطرد بنجاح إلى الوجهة المطلوبة!');
+          }
+        });
+
+        socket.on('driver_moved', (pos) => {
+          const latlng = [pos.lat, pos.lng];
+          if (!driverMarker) {
+            driverMarker = L.marker(latlng, { icon: motoIcon }).addTo(map);
+          } else {
+            driverMarker.setLatLng(latlng);
+          }
+        });
+      } catch (e) {}
+    }
+
+    // إرسال طلب التوصيل
+    async function createOrder() {
+      if (!pickupPoint || !dropoffPoint) {
+        alert('يرجى تحديد مكان الاستلام ووجهة تسليم الطرد أولاً');
+        return;
+      }
+
+      const pickupAddr = document.getElementById('input-pickup-address').value.trim() || 'مكان الاستلام';
+      const dropoffAddr = document.getElementById('input-dropoff-address').value.trim() || 'وجهة التسليم (Destination)';
+      const parcelType = document.getElementById('select-parcel-type').value;
+      const recipientPhone = document.getElementById('input-recipient-phone').value.trim();
+      const parcelNotes = document.getElementById('input-parcel-notes').value.trim();
+      const fullNotes = `[طرد: ${parcelType}] ${recipientPhone ? 'هاتف المستلم: ' + recipientPhone + ' ' : ''}${parcelNotes ? '- ' + parcelNotes : ''}`.trim();
+
+      const btn = document.getElementById('btn-create-order');
+      btn.disabled = true;
+      btn.innerText = '⏳ جاري إرسال الطلب للسائقين...';
+
+      try {
+        const res = await fetch(API_BASE + '/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + clientToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            pickup_address: pickupAddr,
+            pickup_lat: pickupPoint.lat,
+            pickup_lng: pickupPoint.lng,
+            dropoff_address: dropoffAddr,
+            dropoff_lat: dropoffPoint.lat,
+            dropoff_lng: dropoffPoint.lng,
+            notes: fullNotes
+          })
+        }).then(r => r.json());
+
+        const order = res.data || res;
+
+        if (order?.id) {
+          currentOrderId = order.id;
+          document.getElementById('order-form-card').classList.add('hidden');
+          document.getElementById('live-tracking-card').classList.remove('hidden');
+          document.getElementById('tracking-order-id').innerText = '#' + currentOrderId.slice(0, 8);
+          document.getElementById('tracking-dropoff').innerText = order.dropoff_address;
+          document.getElementById('tracking-price').innerText = `${order.total_price} دج`;
+          document.getElementById('order-status-badge').innerText = 'pending';
+
+          if (socket) socket.emit('join_order', { orderId: currentOrderId });
+          log(`🚀 تم إرسال الطلب بنجاح إلى الوجهة "${dropoffAddr}"! جاري البحث عن أقرب سائق دراجة نارية...`);
+        } else {
+          alert('تعذر إرسال الطلب: ' + (res.message || 'خطأ غير متوقع'));
+        }
+      } catch (err) {
+        alert('خطأ في الاتصال بالسيرفر: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🛵</span> طلب دراجة نارية للتوصيل الآن';
+      }
+    }
+
+    async function submitClientReview() {
+      const stars = document.getElementById('review-stars-client').value;
+      alert(`شكراً لك! تم إرسال تقييمك (${stars} نجوم) بنجاح.`);
+      document.getElementById('client-review-box').classList.add('hidden');
+    }
+
+    function resetClientApp() {
+      document.getElementById('order-form-card').classList.remove('hidden');
+      document.getElementById('live-tracking-card').classList.add('hidden');
+      document.getElementById('tracking-driver-box').classList.add('hidden');
+      document.getElementById('client-review-box').classList.add('hidden');
+      currentOrderId = null;
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
