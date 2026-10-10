@@ -797,6 +797,53 @@ function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [mapTheme, setMapTheme] = useState('dark');
+  const [unreadNotifCount, setUnreadNotifCount] = useState(4);
+  const [notificationsList, setNotificationsList] = useState([
+    {
+      id: 'notif-1',
+      time: 'منذ دقيقة',
+      title: 'طلب توصيل جديد',
+      desc: 'البريد المركزي ➡️ باب الزوار بمبلغ 1,033.50 DZD',
+      icon: '🛵',
+      color: 'text-amber-400',
+      type: 'order',
+      actionLabel: 'فتح المحاكي ومسار التوصيل',
+      read: false
+    },
+    {
+      id: 'notif-2',
+      time: 'منذ 5 دقائق',
+      title: 'السائق azer deco متصل',
+      desc: 'تم تحديث التواجد المباشر برادار العاصمة',
+      icon: '🟢',
+      color: 'text-emerald-400',
+      type: 'driver',
+      actionLabel: 'عرض جدول الشوافرة ورادار الأسطول',
+      read: false
+    },
+    {
+      id: 'notif-3',
+      time: 'منذ 15 دقيقة',
+      title: 'طلب توثيق جديد KYC',
+      desc: 'السائق وليد عثماني قدم رخصة سياقة بيومترية',
+      icon: '📑',
+      color: 'text-sky-400',
+      type: 'kyc',
+      actionLabel: 'فحص وتدقيق رخصة السياقة الآن',
+      read: false
+    },
+    {
+      id: 'notif-4',
+      time: 'منذ 28 دقيقة',
+      title: 'اكتمال توصيل كاش',
+      desc: 'تم تسليم الطلب #9b67af7d واقتطاع 15% عمولة المنصة',
+      icon: '✅',
+      color: 'text-emerald-400',
+      type: 'order_delivered',
+      actionLabel: 'معاينة تفاصيل الطلب في الجدول',
+      read: false
+    }
+  ]);
 
   // 4. Data State (Stored in localStorage)
   const [drivers, setDrivers] = useState(() => {
@@ -1509,6 +1556,37 @@ function App() {
       return matchesStatus && matchesSearch;
     });
   }, [orders, orderStatusFilter, orderSearchQuery]);
+
+  const handleOpenNotification = notif => {
+    playAudioTone('action', soundEnabled);
+    setNotificationDrawerOpen(false);
+
+    // Mark as read
+    setNotificationsList(curr => curr.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    setUnreadNotifCount(prev => Math.max(0, prev - 1));
+
+    if (notif.type === 'kyc') {
+      setCurrentView('admin');
+      setAdminTab('kyc');
+      const targetKyc = kycRequests.find(k => k.driver_name.includes('وليد') || k.status === 'pending') || kycRequests[0];
+      if (targetKyc) {
+        setTimeout(() => {
+          setModalInspectKYC({ open: true, request: targetKyc });
+        }, 150);
+      }
+    } else if (notif.type === 'driver') {
+      setCurrentView('admin');
+      setAdminTab('drivers');
+    } else if (notif.type === 'order') {
+      setCurrentView('simulator');
+    } else if (notif.type === 'order_delivered') {
+      setCurrentView('admin');
+      setAdminTab('orders');
+      setOrderStatusFilter('delivered');
+      setOrderSearchQuery('9b67af7d');
+    }
+  };
+
   return /*#__PURE__*/React.createElement("div", {
     className: "min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans"
   }, /*#__PURE__*/React.createElement("header", {
@@ -1562,9 +1640,9 @@ function App() {
     title: "\u0633\u062C\u0644 \u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062A \u0648\u0627\u0644\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0627\u0644\u062D\u064A\u0629"
   }, /*#__PURE__*/React.createElement(Icons.Bell, {
     size: 16
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center"
-  }, "4")), /*#__PURE__*/React.createElement("button", {
+  }), unreadNotifCount > 0 && /*#__PURE__*/React.createElement("span", {
+    className: "absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center animate-pulse"
+  }, unreadNotifCount)), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       playAudioTone('action', soundEnabled);
     },
@@ -1585,7 +1663,7 @@ function App() {
   }, "\u0645\u062F\u064A\u0631 \u0639\u0627\u0645 (Admin)"))))), notificationDrawerOpen && /*#__PURE__*/React.createElement("div", {
     className: "fixed inset-0 z-50 flex justify-start bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-150"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "w-full max-w-sm bg-slate-900 border-l border-slate-800 shadow-2xl p-5 flex flex-col h-full"
+    className: "w-full max-w-sm sm:max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl p-5 flex flex-col h-full"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-between pb-4 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("div", {
@@ -1593,50 +1671,53 @@ function App() {
   }, /*#__PURE__*/React.createElement(Icons.Bell, {
     size: 18,
     className: "text-amber-400"
-  }), /*#__PURE__*/React.createElement("span", null, "\u0627\u0644\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0648\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062A \u0627\u0644\u062D\u064A\u0629")), /*#__PURE__*/React.createElement("button", {
+  }), /*#__PURE__*/React.createElement("span", null, "\u0627\u0644\u062A\u0646\u0628\u064A\u0647\u0627\u062A \u0648\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062A \u0627\u0644\u062D\u064A\u0629"), unreadNotifCount > 0 ? /*#__PURE__*/React.createElement("span", {
+    className: "px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/30 font-mono"
+  }, `${unreadNotifCount} \u062C\u062F\u064A\u062F\u0629`) : /*#__PURE__*/React.createElement("span", {
+    className: "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+  }, "\u0645\u0642\u0631\u0648\u0621\u0629 \u0628\u0627\u0644\u0643\u0627\u0645\u0644")), /*#__PURE__*/React.createElement("button", {
     onClick: () => setNotificationDrawerOpen(false),
-    className: "text-slate-400 hover:text-white text-lg font-bold"
+    className: "text-slate-400 hover:text-white text-lg font-bold p-1 rounded-lg hover:bg-slate-800 transition"
   }, "\u2715")), /*#__PURE__*/React.createElement("div", {
     className: "flex-1 overflow-y-auto py-4 space-y-3"
-  }, [{
-    time: 'منذ دقيقة',
-    title: 'طلب توصيل جديد',
-    desc: 'البريد المركزي ➡️ باب الزوار بمبلغ 1,033.50 DZD',
-    icon: '🛵',
-    color: 'text-amber-400'
-  }, {
-    time: 'منذ 5 دقائق',
-    title: 'السائق azer deco متصل',
-    desc: 'تم تحديث التواجد المباشر برادار العاصمة',
-    icon: '🟢',
-    color: 'text-emerald-400'
-  }, {
-    time: 'منذ 15 دقيقة',
-    title: 'طلب توثيق جديد KYC',
-    desc: 'السائق وليد عثماني قدم رخصة سياقة بيومترية',
-    icon: '📑',
-    color: 'text-sky-400'
-  }, {
-    time: 'منذ 28 دقيقة',
-    title: 'اكتمال توصيل كاش',
-    desc: 'تم تسليم الطلب #9b67af7d واقتطاع 15% عمولة المنصة',
-    icon: '✅',
-    color: 'text-emerald-400'
-  }].map((notif, idx) => /*#__PURE__*/React.createElement("div", {
-    key: idx,
-    className: "p-3 rounded-xl bg-slate-850/80 border border-slate-800 hover:border-slate-700 transition"
+  }, notificationsList.map(notif => /*#__PURE__*/React.createElement("div", {
+    key: notif.id,
+    onClick: () => handleOpenNotification(notif),
+    className: `group cursor-pointer p-3.5 rounded-2xl border transition-all duration-200 active:scale-[0.98] ${notif.read ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 opacity-80 hover:opacity-100' : 'bg-slate-850/90 border-slate-700 hover:border-amber-400/60 shadow-md shadow-amber-500/5'}`
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-between text-xs mb-1"
+    className: "flex items-center justify-between text-xs mb-1.5"
   }, /*#__PURE__*/React.createElement("span", {
-    className: `font-bold flex items-center gap-1 ${notif.color}`
-  }, /*#__PURE__*/React.createElement("span", null, notif.icon), " ", notif.title), /*#__PURE__*/React.createElement("span", {
+    className: `font-bold flex items-center gap-1.5 ${notif.color}`
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-base"
+  }, notif.icon), /*#__PURE__*/React.createElement("span", null, notif.title), !notif.read && /*#__PURE__*/React.createElement("span", {
+    className: "w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block mr-1"
+  })), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-slate-500 font-mono"
   }, notif.time)), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
-  }, notif.desc)))), /*#__PURE__*/React.createElement("button", {
+    className: "text-xs text-slate-300 leading-relaxed font-sans pr-1"
+  }, notif.desc), /*#__PURE__*/React.createElement("div", {
+    className: "mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-bold text-amber-400 group-hover:text-amber-300"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDC49"), /*#__PURE__*/React.createElement("span", null, notif.actionLabel)), /*#__PURE__*/React.createElement("span", {
+    className: "px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 group-hover:bg-amber-500/20 text-[10px] font-mono transition"
+  }, "\u062F\u062E\u0648\u0644 \u2B05\uFE0F"))))), /*#__PURE__*/React.createElement("div", {
+    className: "pt-3 border-t border-slate-800 space-y-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      playAudioTone('action', soundEnabled);
+      setNotificationsList(curr => curr.map(n => ({
+        ...n,
+        read: true
+      })));
+      setUnreadNotifCount(0);
+    },
+    className: "w-full py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700/80 text-slate-300 text-xs font-bold transition flex items-center justify-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", null, "\u2713"), /*#__PURE__*/React.createElement("span", null, "\u062A\u062D\u062F\u064A\u062F \u0627\u0644\u0643\u0644 \u0643\u0645\u0642\u0631\u0648\u0621")), /*#__PURE__*/React.createElement("button", {
     onClick: () => setNotificationDrawerOpen(false),
     className: "w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
-  }, "\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062A\u0646\u0628\u064A\u0647\u0627\u062A"))), currentView === 'admin' ? /*#__PURE__*/React.createElement(AdminDashboardView, {
+  }, "\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062A\u0646\u0628\u064A\u0647\u0627\u062A")))), currentView === 'admin' ? /*#__PURE__*/React.createElement(AdminDashboardView, {
     kpis: kpis,
     orderStats: orderStats,
     drivers: drivers,
