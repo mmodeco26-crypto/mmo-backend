@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiService {
-  // استبدل بـ IP جهازك المحلي (مثال: http://192.168.1.5:3000/api/v1) أو 10.0.2.2 لمُحاكي أندرويد
-  static const String baseUrl = 'http://10.0.2.2:3000/api/v1';
+  // 🌐 السيرفر السحابي المباشر الدائم (Render.com 24/7)
+  static const String baseUrl = 'https://mmo-backend-tx2s.onrender.com/api/v1';
   static const _storage = FlutterSecureStorage();
 
   static Future<String?> getToken() async {

@@ -105,6 +105,9 @@
   <header>
     <h1>🏍️ Moto Delivery - المحاكي التفاعلي المتكامل</h1>
     <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/index.html" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; gap: 6px;">
+        <span>👑</span> لوحة الإدارة (Admin Panel)
+      </a>
       <span id="socket-status" class="badge offline">WebSocket: غير متصل</span>
       <span style="font-size: 0.85rem; color: #94a3b8;">الجزائر العاصمة 🇩🇿</span>
     </div>
@@ -195,8 +198,16 @@
   </div>
 
   <script>
-    const API_BASE = 'http://localhost:3000/api/v1';
-    const SOCKET_URL = 'http://localhost:3000/tracking';
+    const CLOUD_API = 'https://mmo-backend-tx2s.onrender.com';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let savedHost = localStorage.getItem('mmo_api_host');
+    if (savedHost && !isLocal && (savedHost.includes('localhost') || savedHost.includes('trycloudflare'))) {
+      localStorage.removeItem('mmo_api_host');
+      savedHost = null;
+    }
+    const SERVER_HOST = savedHost || (isLocal ? 'http://localhost:3000' : CLOUD_API);
+    const API_BASE = `${SERVER_HOST}/api/v1`;
+    const SOCKET_URL = `${SERVER_HOST}/tracking`;
     
     let clientToken = '', driverToken = '', driverUserId = '';
     let pickupPoint = null, dropoffPoint = null;
@@ -255,7 +266,7 @@
     // 3. تهيئة الاتصال وتسجيل الدخول التلقائي
     async function init() {
       try {
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('timeout'), 1500));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('timeout'), 12000));
         
         // محاولة الاتصال بالـ Backend
         const cRes = await Promise.race([

@@ -1,8 +1,8 @@
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class SocketService {
-  static IO.Socket? _socket;
-  static const String socketUrl = 'http://10.0.2.2:3000/tracking';
+  // 🌐 رابط خادم التتبع السحابي المباشر الدائم
+  static const String socketUrl = 'https://mmo-backend-tx2s.onrender.com/tracking';
 
   static void initSocket({
     Function(dynamic)? onDriverMoved,

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏍️ محاكي توصيل الدراجات النارية المباشر | Moto Delivery Simulator</title>
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Socket.io Client -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    header {
+      background: #1e293b;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #334155;
+    }
+    header h1 { font-size: 1.25rem; color: #f59e0b; display: flex; align-items: center; gap: 8px; }
+    .badge { background: #10b981; color: #fff; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: bold; }
+    .badge.offline { background: #ef4444; }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+    }
+
+    /* Side Panels */
+    .panel {
+      width: 380px;
+      background: #1e293b;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+      border-left: 1px solid #334155;
+    }
+    .panel.right { border-left: none; border-right: 1px solid #334155; }
+    .card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 14px; }
+    .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #cbd5e1; display: flex; justify-content: space-between; }
+
+    /* Map */
+    #map { flex: 1; height: 100%; z-index: 1; }
+
+    /* Buttons & Inputs */
+    button {
+      background: #f59e0b;
+      color: #0f172a;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    button:hover { background: #d97706; transform: translateY(-1px); }
+    button.success { background: #10b981; color: #fff; }
+    button.success:hover { background: #059669; }
+    button.secondary { background: #334155; color: #e2e8f0; }
+    button.secondary:hover { background: #475569; }
+
+    input, select {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .log-box {
+      font-size: 0.8rem;
+      background: #020617;
+      padding: 8px;
+      border-radius: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: monospace;
+      color: #a5f3fc;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      background: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🏍️ Moto Delivery - المحاكي التفاعلي المتكامل</h1>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/index.html" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.8rem; border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; gap: 6px;">
+        <span>👑</span> لوحة الإدارة (Admin Panel)
+      </a>
+      <span id="socket-status" class="badge offline">WebSocket: غير متصل</span>
+      <span style="font-size: 0.85rem; color: #94a3b8;">الجزائر العاصمة 🇩🇿</span>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- لوحة الزبون (اليمين) -->
+    <div class="panel right">
+      <div class="card">
+        <div class="card-title">
+          <span>🛒 واجهة الزبون (Client)</span>
+          <span id="client-auth-status" style="color: #10b981; font-size: 0.8rem;">جاهز</span>
+        </div>
+        <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
+          1. انقر على الخريطة لتحديد نقطة الانطلاق (أخضر).<br>
+          2. انقر ثانية لتحديد نقطة الوصول (أحمر).
+        </p>
+        <div style="font-size: 0.85rem; margin-bottom: 8px;">
+          المسافة التقديرية: <b id="calc-distance" style="color: #f59e0b;">0.00 كم</b><br>
+          السعر المحسوب: <b id="calc-price" style="color: #10b981;">0.00 DZD</b>
+        </div>
+        <button id="btn-create-order" onclick="createOrder()" disabled>🚀 إرسال طلب التوصيل</button>
+      </div>
+
+      <div class="card" id="client-order-card" style="display: none;">
+        <div class="card-title">📦 حالة طلبك الحالي</div>
+        <div style="margin-bottom: 8px;">
+          رقم الطلب: <small id="active-order-id" style="color: #38bdf8;">--</small><br>
+          الحالة: <span id="active-order-status" class="status-pill">pending</span>
+        </div>
+        <div id="review-section" style="display: none; margin-top: 10px;">
+          <label style="font-size: 0.8rem;">تقييم السائق (1-5 نجوم):</label>
+          <select id="review-stars">
+            <option value="5">⭐⭐⭐⭐⭐ ممتاز جداً</option>
+            <option value="4">⭐⭐⭐⭐ جيد</option>
+            <option value="3">⭐⭐⭐ متوسط</option>
+          </select>
+          <button class="success" onclick="submitReview()">إرسال التقييم</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📡 سجل أحداث الزبون</div>
+        <div id="client-log" class="log-box">بانتظار الأحداث...</div>
+      </div>
+    </div>
+
+    <!-- الخريطة الحية (الوسط) -->
+    <div id="map"></div>
+
+    <!-- لوحة السائق (اليسار) -->
+    <div class="panel">
+      <div class="card">
+        <div class="card-title">
+          <span>🏍️ واجهة السائق (Driver)</span>
+          <span class="badge" id="driver-online-badge">متصل Online</span>
+        </div>
+        <div style="font-size: 0.85rem; margin-bottom: 8px;">
+          رصيد المحفظة: <b id="driver-wallet" style="color: #34d399;">0.00 DZD</b><br>
+          العمولة المستقطعة: <b>15%</b>
+        </div>
+        <button class="secondary" onclick="toggleOnline()">تبديل حالة الاتصال</button>
+      </div>
+
+      <div class="card" id="driver-pending-card" style="display: none; border-color: #f59e0b;">
+        <div class="card-title" style="color: #f59e0b;">🔔 طلب جديد في محيطك!</div>
+        <p style="font-size: 0.85rem;" id="driver-order-info">من ديدوش مراد إلى باب الزوار</p>
+        <button class="success" style="margin-top: 8px;" onclick="acceptDriverOrder()">✅ قبول الطلب (Race Condition Lock)</button>
+      </div>
+
+      <div class="card" id="driver-action-card" style="display: none;">
+        <div class="card-title">⚡ التحكم في مسار الرحلة</div>
+        <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px;">
+          حرّك المؤشر لمحاكاة حركة الدراجة النارية على الخريطة:
+        </p>
+        <input type="range" id="driver-progress" min="0" max="100" value="0" oninput="simulateDriverMove(this.value)">
+        <div style="display: flex; gap: 6px; margin-top: 8px;">
+          <button class="secondary" onclick="updateOrderStatus('picked_up')">استلمت الطرد</button>
+          <button class="success" onclick="updateOrderStatus('delivered')">تم التسليم كاش</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📡 سجل أحداث السائق</div>
+        <div id="driver-log" class="log-box">بانتظار الطلبات...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CLOUD_API = 'https://mmo-backend-tx2s.onrender.com';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let savedHost = localStorage.getItem('mmo_api_host');
+    if (savedHost && !isLocal && (savedHost.includes('localhost') || savedHost.includes('trycloudflare'))) {
+      localStorage.removeItem('mmo_api_host');
+      savedHost = null;
+    }
+    const SERVER_HOST = savedHost || (isLocal ? 'http://localhost:3000' : CLOUD_API);
+    const API_BASE = `${SERVER_HOST}/api/v1`;
+    const SOCKET_URL = `${SERVER_HOST}/tracking`;
+    
+    let clientToken = '', driverToken = '', driverUserId = '';
+    let pickupPoint = null, dropoffPoint = null;
+    let pickupMarker = null, dropoffMarker = null, driverMarker = null;
+    let currentOrderId = null;
+    let socket = null;
+
+    // 1. تهيئة خريطة الجزائر
+    const map = L.map('map').setView([36.7538, 3.0588], 13);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    }).addTo(map);
+
+    // أيقونة الدراجة النارية
+    const motoIcon = L.divIcon({
+      html: '<div style="background:#d97706;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 10px rgba(0,0,0,0.5);border:2px solid #fff;">🏍️</div>',
+      className: '',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
+    // 2. النقر على الخريطة لتحديد المسار
+    map.on('click', function(e) {
+      if (!pickupPoint) {
+        pickupPoint = e.latlng;
+        if (pickupMarker) map.removeLayer(pickupMarker);
+        pickupMarker = L.marker(pickupPoint).addTo(map).bindPopup('🟢 نقطة الاستلام').openPopup();
+        logClient('تم تحديد نقطة الاستلام: ' + pickupPoint.lat.toFixed(4) + ', ' + pickupPoint.lng.toFixed(4));
+      } else if (!dropoffPoint) {
+        dropoffPoint = e.latlng;
+        if (dropoffMarker) map.removeLayer(dropoffMarker);
+        dropoffMarker = L.marker(dropoffPoint).addTo(map).bindPopup('🔴 نقطة التسليم').openPopup();
+        logClient('تم تحديد نقطة التسليم: ' + dropoffPoint.lat.toFixed(4) + ', ' + dropoffPoint.lng.toFixed(4));
+        
+        // حساب المسافة والسعر
+        const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
+        const price = (500 + distKm * 150).toFixed(2);
+        document.getElementById('calc-distance').innerText = distKm + ' كم';
+        document.getElementById('calc-price').innerText = price + ' DZD';
+        document.getElementById('btn-create-order').disabled = false;
+      } else {
+        // إعادة الضبط بنقرة ثالثة
+        map.removeLayer(pickupMarker);
+        map.removeLayer(dropoffMarker);
+        pickupPoint = e.latlng;
+        dropoffPoint = null;
+        pickupMarker = L.marker(pickupPoint).addTo(map).bindPopup('🟢 نقطة الاستلام الجديد').openPopup();
+        document.getElementById('btn-create-order').disabled = true;
+      }
+    });
+
+    let isMockMode = false;
+    let mockWalletBalance = 2500.0;
+
+    // 3. تهيئة الاتصال وتسجيل الدخول التلقائي
+    async function init() {
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject('timeout'), 12000));
+        
+        // محاولة الاتصال بالـ Backend
+        const cRes = await Promise.race([
+          fetch(API_BASE + '/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: '01011111111', password: 'Password123!' })
+          }).then(r => r.json()),
+          timeoutPromise
+        ]);
+
+        clientToken = cRes.data?.access_token;
+
+        const dRes = await fetch(API_BASE + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: '01022222221', password: 'Password123!' })
+        }).then(r => r.json());
+        driverToken = dRes.data?.access_token;
+        driverUserId = dRes.data?.user?.id;
+
+        logClient('✅ متصل بالـ Backend الحقيقي (NestJS API)');
+        logDriver('✅ تم تسجيل دخول السائق بنجاح');
+        updateWalletDisplay();
+
+        // اتصال الـ WebSockets
+        connectSockets();
+      } catch (err) {
+        // إذا كان الباك إند غير مشغل بعد، تفعيل المحاكي التفاعلي المستقل تلقائياً!
+        isMockMode = true;
+        document.getElementById('socket-status').className = 'badge';
+        document.getElementById('socket-status').style.background = '#8b5cf6';
+        document.getElementById('socket-status').innerText = 'وضع العرض المرئي التفاعلي ⚡';
+        document.getElementById('driver-wallet').innerText = mockWalletBalance + ' DZD';
+        logClient('💡 تم تفعيل محاكي العرض التفاعلي الفوري (جاهز للتجربة الآن!)');
+        logDriver('🏍️ السائق متصل وجاهز لاستقبال الطلبات على الخريطة');
+      }
+    }
+
+    function connectSockets() {
+      socket = io(SOCKET_URL);
+      socket.on('connect', () => {
+        document.getElementById('socket-status').className = 'badge';
+        document.getElementById('socket-status').innerText = 'WebSocket: متصل 🟢';
+      });
+
+      // استماع السائق للطلبات الجديدة
+      socket.on('new_order_available', (order) => {
+        logDriver('🔔 طلب جديد متاح: ' + order.pickup_address + ' (' + order.total_price + ' DZD)');
+        currentOrderId = order.orderId;
+        document.getElementById('driver-pending-card').style.display = 'block';
+        document.getElementById('driver-order-info').innerText = `${order.pickup_address} ➡️ ${order.total_price} DZD`;
+      });
+
+      // استماع لتحديثات حالة الطلب
+      socket.on('order_status_changed', (data) => {
+        logClient('📦 تم تحديث حالة الطلب إلى: ' + data.status);
+        document.getElementById('active-order-status').innerText = data.status;
+        if (data.status === 'delivered') {
+          document.getElementById('review-section').style.display = 'block';
+          updateWalletDisplay();
+        }
+      });
+
+      // استماع الزبون لحركة الدراجة النارية الحية
+      socket.on('driver_moved', (pos) => {
+        const latlng = [pos.lat, pos.lng];
+        if (!driverMarker) {
+          driverMarker = L.marker(latlng, { icon: motoIcon }).addTo(map);
+        } else {
+          driverMarker.setLatLng(latlng);
+        }
+      });
+    }
+
+    // 4. إنشاء طلب من العميل
+    async function createOrder() {
+      const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
+      const price = (500 + distKm * 150).toFixed(2);
+
+      if (isMockMode) {
+        currentOrderId = 'demo-' + Math.floor(100000 + Math.random() * 900000);
+        document.getElementById('client-order-card').style.display = 'block';
+        document.getElementById('active-order-id').innerText = currentOrderId;
+        document.getElementById('active-order-status').innerText = 'pending';
+        logClient('🚀 تم إرسال الطلب وحساب السعر: ' + price + ' DZD (المسافة: ' + distKm + ' كم)');
+
+        // إشعار السائق فورياً
+        setTimeout(() => {
+          logDriver('🔔 [WebSocket Event] طلب جديد متاح في محيطك: ' + price + ' DZD');
+          document.getElementById('driver-pending-card').style.display = 'block';
+          document.getElementById('driver-order-info').innerText = `من الجزائر الوسطى ➡️ إلى باب الزوار (${price} DZD)`;
+        }, 500);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + clientToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            pickup_address: 'ميدان الجزائر الوسطى',
+            pickup_lat: pickupPoint.lat,
+            pickup_lng: pickupPoint.lng,
+            dropoff_address: 'حي باب الزوار',
+            dropoff_lat: dropoffPoint.lat,
+            dropoff_lng: dropoffPoint.lng,
+            notes: 'طلب محاكاة تفاعلي'
+          })
+        }).then(r => r.json());
+
+        if (res.data?.id) {
+          currentOrderId = res.data.id;
+          document.getElementById('client-order-card').style.display = 'block';
+          document.getElementById('active-order-id').innerText = currentOrderId.slice(0, 8);
+          document.getElementById('active-order-status').innerText = 'pending';
+          if (socket) socket.emit('join_order', { orderId: currentOrderId });
+          logClient('🚀 تم إرسال الطلب وحساب السعر: ' + res.data.total_price + ' DZD');
+        }
+      } catch (e) {
+        logClient('❌ فشل إنشاء الطلب: ' + e);
+      }
+    }
+
+    // 5. قبول الطلب من طرف السائق
+    async function acceptDriverOrder() {
+      if (isMockMode) {
+        logDriver('✅ تم قبول الطلب رسمياً وحجزه لك بنجاح (قفل التضارب مفعل)');
+        document.getElementById('driver-pending-card').style.display = 'none';
+        document.getElementById('driver-action-card').style.display = 'block';
+        document.getElementById('active-order-status').innerText = 'accepted';
+        logClient('📦 تم قبول طلبك من قِبل السائق ياسين! السائق في الطريق إليك.');
+
+        if (pickupPoint) {
+          if (driverMarker) map.removeLayer(driverMarker);
+          driverMarker = L.marker(pickupPoint, { icon: motoIcon }).addTo(map);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + `/orders/${currentOrderId}/accept`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + driverToken }
+        }).then(r => r.json());
+
+        if (res.data) {
+          logDriver('✅ تم قبول الطلب رسمياً وحجزه لك!');
+          document.getElementById('driver-pending-card').style.display = 'none';
+          document.getElementById('driver-action-card').style.display = 'block';
+          if (socket) socket.emit('join_order', { orderId: currentOrderId });
+
+          if (pickupPoint) {
+            if (driverMarker) map.removeLayer(driverMarker);
+            driverMarker = L.marker(pickupPoint, { icon: motoIcon }).addTo(map);
+          }
+        } else {
+          logDriver('❌ ' + (res.message || 'فشل قبول الطلب'));
+        }
+      } catch (e) {
+        logDriver('❌ خطأ: ' + e);
+      }
+    }
+
+    // 6. محاكاة حركة السائق على الخريطة
+    function simulateDriverMove(progress) {
+      if (!pickupPoint || !dropoffPoint) return;
+      const pct = progress / 100;
+      const lat = pickupPoint.lat + (dropoffPoint.lat - pickupPoint.lat) * pct;
+      const lng = pickupPoint.lng + (dropoffPoint.lng - pickupPoint.lng) * pct;
+      
+      if (driverMarker) driverMarker.setLatLng([lat, lng]);
+
+      if (socket && !isMockMode) {
+        socket.emit('driver_location', {
+          orderId: currentOrderId,
+          driverId: driverUserId,
+          lat: lat,
+          lng: lng
+        });
+      } else {
+        logClient(`🛰️ [Live GPS] الدراجة النارية تتحرك: (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+      }
+    }
+
+    // 7. تحديث حالة الطلب
+    async function updateOrderStatus(status) {
+      if (isMockMode) {
+        logDriver('⚡ تم تحديث الحالة إلى: ' + status);
+        logClient('📦 حالة الطلب لدى العميل: ' + status);
+        document.getElementById('active-order-status').innerText = status;
+
+        if (status === 'delivered') {
+          document.getElementById('driver-action-card').style.display = 'none';
+          document.getElementById('review-section').style.display = 'block';
+          
+          // خصم عمولة 15%
+          const distKm = parseFloat(document.getElementById('calc-distance').innerText) || 2.5;
+          const orderPrice = 500 + distKm * 150;
+          const commission = (orderPrice * 0.15).toFixed(2);
+          mockWalletBalance = (mockWalletBalance - commission).toFixed(2);
+          document.getElementById('driver-wallet').innerText = mockWalletBalance + ' DZD';
+          logDriver(`💵 تم استلام كاش من الزبون، وخصم عمولة المنصة 15% (-${commission} DZD)`);
+        }
+        return;
+      }
+
+      try {
+        await fetch(API_BASE + `/orders/${currentOrderId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + driverToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+        logDriver('تم تغيير الحالة إلى: ' + status);
+        if (status === 'delivered') {
+          document.getElementById('driver-action-card').style.display = 'none';
+          updateWalletDisplay();
+        }
+      } catch (e) {
+        logDriver('❌ خطأ في التحديث: ' + e);
+      }
+    }
+
+    // 8. تحديث عرض المحفظة
+    async function updateWalletDisplay() {
+      if (isMockMode) return;
+      try {
+        const res = await fetch(API_BASE + '/wallet/me', {
+          headers: { 'Authorization': 'Bearer ' + driverToken }
+        }).then(r => r.json());
+        if (res.data) {
+          document.getElementById('driver-wallet').innerText = res.data.balance + ' ' + res.data.currency;
+        }
+      } catch (e) {}
+    }
+
+    // 9. إرسال تقييم
+    async function submitReview() {
+      const rating = document.getElementById('review-stars').value;
+      if (isMockMode) {
+        logClient(`⭐ تم إرسال تقييمك (${rating} نجوم) وتحديث معدل السائق بنجاح! شكراً لك.`);
+        document.getElementById('review-section').style.display = 'none';
+        return;
+      }
+
+      try {
+        await fetch(API_BASE + '/reviews', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + clientToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            order_id: currentOrderId,
+            rating: parseInt(rating),
+            comment: 'تقييم من المحاكي التفاعلي'
+          })
+        });
+        logClient('⭐ تم إرسال التقييم بنجاح!');
+        document.getElementById('review-section').style.display = 'none';
+      } catch (e) {
+        logClient('❌ خطأ في التقييم');
+      }
+    }
+
+    function logClient(msg) {
+      const el = document.getElementById('client-log');
+      el.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + el.innerHTML;
+    }
+    function logDriver(msg) {
+      const el = document.getElementById('driver-log');
+      el.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + el.innerHTML;
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

@@ -159,6 +159,14 @@
           <span id="socket-badge" class="text-xs text-slate-300 font-medium">سيرفر متصل</span>
         </div>
 
+        <a href="/simulator.html" target="_blank" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <span>🎮</span> <span class="hidden md:inline">محاكي العمليات (Simulateur)</span>
+        </a>
+
+        <button id="btn-toggle-sound" onclick="toggleAudioNotifications()" title="كتم/تفعيل التنبيهات الصوتية" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-2.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1">
+          <span id="sound-icon">🔔</span>
+        </button>
+
         <button onclick="loadDashboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
           <span>🔄</span> <span class="hidden sm:inline">تحديث</span>
         </button>
@@ -369,6 +377,9 @@
         </button>
         <button onclick="switchTab('agents')" id="tab-btn-agents" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
           🛡️ فريق العمل والوكلاء (<span id="count-agents">0</span>)
+        </button>
+        <button onclick="switchTab('finances')" id="tab-btn-finances" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          💼 المالية والمحافظ (Finances)
         </button>
       </div>
 
@@ -926,35 +937,175 @@
       </div>
     </div>
 
-    <!-- Modal: إعادة تعيين كلمة المرور (Changer MDP Agent) -->
-    <div id="modal-reset-agent-pass" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
-          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
-            <span>🔑</span> تغيير كلمة مرور الوكيل
-          </h3>
-          <button onclick="closeResetAgentPasswordModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+    <!-- محتوى التبويب: المالية والمحافظ -->
+    <div id="tab-finances" class="p-5 hidden">
+      <!-- شريط الإحصائيات المالية المتقدمة -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 shadow-lg shadow-emerald-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-emerald-400 font-semibold">إجمالي عمولات المنصة المحصلة</span>
+            <span class="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-lg">💰</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-300 font-mono" id="fin-total-commissions">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">صافي أرباح التطبيق المقتطعة من التوصيل</p>
         </div>
-        <form id="form-reset-agent-pass" onsubmit="submitResetAgentPassword(event)" class="p-6 space-y-4">
-          <p class="text-xs text-slate-300">
-            أنت بصدد تعيين كلمة مرور جديدة للوكيل: <strong id="reset-agent-name" class="text-amber-400"></strong>
-          </p>
-          <input type="hidden" id="reset-agent-id">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور الجديدة *</label>
-            <input type="text" id="reset-agent-new-pass" required placeholder="أدخل كلمة مرور جديدة (6 أحرف على الأقل)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-indigo-400">
+
+        <div class="bg-gradient-to-br from-sky-950/60 to-slate-900 border border-sky-500/30 rounded-2xl p-4 shadow-lg shadow-sky-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-sky-400 font-semibold">إجمالي أرصدة السائقين الإيجابية</span>
+            <span class="p-2 rounded-xl bg-sky-500/20 text-sky-300 text-lg">💳</span>
           </div>
-          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-            <button type="button" onclick="closeResetAgentPasswordModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
-              إلغاء
-            </button>
-            <button type="submit" id="btn-submit-reset-pass" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
-              حفظ كلمة المرور الجديدة 💾
-            </button>
+          <div class="text-2xl font-black text-sky-300 font-mono" id="fin-total-balances">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">أموال مشحونة مسبقاً لدى السائقين</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-rose-950/60 to-slate-900 border border-rose-500/30 rounded-2xl p-4 shadow-lg shadow-rose-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-rose-400 font-semibold">إجمالي ديون السائقين النشطة</span>
+            <span class="p-2 rounded-xl bg-rose-500/20 text-rose-300 text-lg">⚠️</span>
           </div>
-        </form>
+          <div class="text-2xl font-black text-rose-400 font-mono" id="fin-total-debts">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">مبالغ مستحقة من كاش التوصيل لم تُسدد بعد</p>
+        </div>
+      </div>
+
+      <!-- جدول أرصدة السائقين والمحافظ -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>🛵</span> محافظ السائقين وحالة الديون (Soldes Livreur)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">سقف الدين التلقائي: 3,000 دج</span>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">السائق</th>
+                <th class="px-4 py-3">الهاتف</th>
+                <th class="px-4 py-3">الرصيد الحالي</th>
+                <th class="px-4 py-3">سقف الدين</th>
+                <th class="px-4 py-3">الحالة المالية</th>
+                <th class="px-4 py-3 text-center">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="finances-drivers-table-body" class="divide-y divide-slate-800 text-slate-200">
+              <tr><td colspan="6" class="text-center py-6 text-slate-500">جاري تحميل المحافظ...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- جدول سجل آخر المعاملات المالية -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>📑</span> سجل المعاملات المالية الأخيرة (Journal des Transactions)
+          </h3>
+          <button onclick="loadFinances()" class="text-xs text-amber-400 hover:underline">تحديث السجل 🔄</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-96 overflow-y-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800 sticky top-0">
+              <tr>
+                <th class="px-4 py-3">النوع</th>
+                <th class="px-4 py-3">المستفيد</th>
+                <th class="px-4 py-3">المبلغ</th>
+                <th class="px-4 py-3">الرصيد بعد العملية</th>
+                <th class="px-4 py-3">البيان / الوصف</th>
+                <th class="px-4 py-3">التاريخ والوقت</th>
+              </tr>
+            </thead>
+            <tbody id="finances-transactions-table-body" class="divide-y divide-slate-800 text-slate-200">
+              <tr><td colspan="6" class="text-center py-6 text-slate-500">جاري تحميل المعاملات...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Modal: إعادة تعيين كلمة المرور (Changer MDP Agent) -->
+  <div id="modal-reset-agent-pass" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+          <span>🔑</span> تغيير كلمة مرور الوكيل
+        </h3>
+        <button onclick="closeResetAgentPasswordModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="form-reset-agent-pass" onsubmit="submitResetAgentPassword(event)" class="p-6 space-y-4">
+        <p class="text-xs text-slate-300">
+          أنت بصدد تعيين كلمة مرور جديدة للوكيل: <strong id="reset-agent-name" class="text-amber-400"></strong>
+        </p>
+        <input type="hidden" id="reset-agent-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور الجديدة *</label>
+          <input type="text" id="reset-agent-new-pass" required placeholder="أدخل كلمة مرور جديدة (6 أحرف على الأقل)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-indigo-400">
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeResetAgentPasswordModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+            إلغاء
+          </button>
+          <button type="submit" id="btn-submit-reset-pass" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
+            حفظ كلمة المرور الجديدة 💾
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: شحن محفظة سائق / تسديد نقدي (Recharger Portefeuille) -->
+  <div id="modal-recharge-wallet" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+          <span>💵</span> شحن محفظة السائق / تسديد مستحقات
+        </h3>
+        <button onclick="closeRechargeModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="form-recharge-wallet" onsubmit="submitRechargeWallet(event)" class="p-6 space-y-4">
+        <input type="hidden" id="recharge-driver-id">
+        
+        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+          <p class="text-xs text-slate-300">السائق: <strong id="recharge-driver-name" class="text-amber-400 font-bold"></strong></p>
+          <p class="text-xs text-slate-400 mt-1">الرصيد الحالي: <span id="recharge-driver-curr-balance" class="font-mono font-bold"></span></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">مبلغ الشحن (دج / DZD) *</label>
+          <input type="number" id="recharge-amount" required min="10" step="50" placeholder="مثال: 1000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+          <div class="grid grid-cols-4 gap-2 mt-2">
+            <button type="button" onclick="setRechargeAmount(500)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+500 دج</button>
+            <button type="button" onclick="setRechargeAmount(1000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+1,000 دج</button>
+            <button type="button" onclick="setRechargeAmount(2000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+2,000 دج</button>
+            <button type="button" onclick="setRechargeAmount(5000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+5,000 دج</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">البيان / طريقة الدفع</label>
+          <select id="recharge-reference" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+            <option value="تسديد نقدي كاش في المكتب">تسديد نقدي كاش في المكتب</option>
+            <option value="تحويل بريدي موب BaridiMob">تحويل بريدي موب BaridiMob</option>
+            <option value="تسوية عمولات دورية">تسوية عمولات دورية</option>
+            <option value="مكافأة ترويجية / بونص">مكافأة ترويجية / بونص (Bonus)</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeRechargeModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+            إلغاء
+          </button>
+          <button type="submit" id="btn-submit-recharge" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2">
+            <span>✅</span> تأكيد الشحن الفوري
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
   </main>
 </div>
 
@@ -2384,9 +2535,53 @@
       }
     }
 
+    // 🔔 نظام التنبيهات الصوتية الحية (Web Audio API Chime)
+    let soundEnabled = true;
+
+    function toggleAudioNotifications() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      if (icon) icon.innerText = soundEnabled ? '🔔' : '🔕';
+      if (soundEnabled) playNotificationChime('test');
+    }
+
+    function playNotificationChime(type = 'new_order') {
+      if (!soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(type === 'test' ? 440 : 587.33, now); // D5
+        osc1.frequency.exponentialRampToValueAtTime(type === 'test' ? 880 : 880, now + 0.15); // A5
+        gain1.gain.setValueAtTime(0.25, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.45);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(type === 'test' ? 660 : 783.99, now + 0.1); // G5
+        osc2.frequency.exponentialRampToValueAtTime(type === 'test' ? 1174 : 1174.66, now + 0.3); // D6
+        gain2.gain.setValueAtTime(0.25, now + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.1);
+        osc2.stop(now + 0.6);
+      } catch (e) {}
+    }
+
     // تبديل التبويبات
     function switchTab(tab) {
-      ['drivers', 'clients', 'kyc', 'orders', 'settings', 'agents'].forEach(t => {
+      ['drivers', 'clients', 'kyc', 'orders', 'settings', 'agents', 'finances'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         const btn = document.getElementById(`tab-btn-${t}`);
         if (el) el.classList.add('hidden');
@@ -2398,8 +2593,145 @@
       if (activeEl) activeEl.classList.remove('hidden');
       if (activeBtn) activeBtn.className = 'px-6 py-4 font-semibold text-sm border-b-2 border-amber-400 text-amber-400 transition whitespace-nowrap';
 
+      if (tab === 'finances') loadFinances();
+
       // تمرير سلس نحو الجدول إذا تم النقر من إحدى بطاقات الإحصائيات
       activeEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // 💼 جلب البيانات المالية والمحافظ
+    async function loadFinances() {
+      if (!adminToken) return;
+      try {
+        const [finRes, driversRes] = await Promise.all([
+          fetch(`${API_BASE}/admin/finances`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/admin/drivers`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).then(r => r.json()).catch(() => ({ data: [] }))
+        ]);
+
+        if (finRes.data) {
+          const f = finRes.data;
+          document.getElementById('fin-total-commissions').innerText = `${parseFloat(f.total_commissions_earned || 0).toLocaleString()} دج`;
+          document.getElementById('fin-total-balances').innerText = `${parseFloat(f.total_positive_balances || 0).toLocaleString()} دج`;
+          document.getElementById('fin-total-debts').innerText = `${parseFloat(f.total_driver_debts || 0).toLocaleString()} دج`;
+
+          // سجل المعاملات
+          const txTbody = document.getElementById('finances-transactions-table-body');
+          if (txTbody) {
+            if (!f.recent_transactions || f.recent_transactions.length === 0) {
+              txTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-500">لا توجد معاملات مسجلة بعد</td></tr>';
+            } else {
+              txTbody.innerHTML = f.recent_transactions.map(t => {
+                const isDeposit = parseFloat(t.amount) > 0;
+                const typeLabel = isDeposit ? '🟢 شحن / إيداع' : '🔴 خصم عمولة';
+                const dateStr = new Date(t.created_at).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' });
+                return `
+                  <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-4 py-3 font-semibold">${typeLabel}</td>
+                    <td class="px-4 py-3">${t.user_name || '—'} <span class="text-slate-400 font-mono text-[11px]">(${t.user_phone || ''})</span></td>
+                    <td class="px-4 py-3 font-mono font-bold ${isDeposit ? 'text-emerald-400' : 'text-rose-400'}">${isDeposit ? '+' : ''}${parseFloat(t.amount).toLocaleString()} دج</td>
+                    <td class="px-4 py-3 font-mono text-slate-300">${parseFloat(t.balance_after || 0).toLocaleString()} دج</td>
+                    <td class="px-4 py-3 text-slate-300">${t.description || '—'}</td>
+                    <td class="px-4 py-3 text-slate-400 font-mono text-[11px]">${dateStr}</td>
+                  </tr>
+                `;
+              }).join('');
+            }
+          }
+        }
+
+        // جدول محافظ السائقين
+        const drivers = driversRes.data || [];
+        const drTbody = document.getElementById('finances-drivers-table-body');
+        if (drTbody) {
+          if (drivers.length === 0) {
+            drTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-500">لا يوجد سائقون مسجلون بعد</td></tr>';
+          } else {
+            drTbody.innerHTML = drivers.map(d => {
+              const bal = parseFloat(d.wallet_balance || 0);
+              const debtLimit = parseFloat(d.debt_limit || 3000);
+              const isNegative = bal < 0;
+              const isExceeded = isNegative && (-bal > debtLimit);
+              const statusPill = isExceeded
+                ? '<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold">🚫 تجاوز سقف الدين</span>'
+                : (isNegative
+                  ? '<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold">⚠️ عليه دين</span>'
+                  : '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">✅ رصيد إيجابي</span>');
+
+              return `
+                <tr class="hover:bg-slate-800/40 transition">
+                  <td class="px-4 py-3 font-bold text-slate-100">${d.name} <span class="text-[11px] text-slate-400 font-normal">(${d.vehicle_plate})</span></td>
+                  <td class="px-4 py-3 font-mono text-slate-300">${d.phone}</td>
+                  <td class="px-4 py-3 font-mono font-bold ${isNegative ? 'text-rose-400' : 'text-emerald-400'}">${bal.toLocaleString()} دج</td>
+                  <td class="px-4 py-3 font-mono text-slate-400">${debtLimit.toLocaleString()} دج</td>
+                  <td class="px-4 py-3">${statusPill}</td>
+                  <td class="px-4 py-3 text-center">
+                    <button onclick="openRechargeModal('${d.driver_id}', '${d.name}', '${bal}')" class="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition inline-flex items-center gap-1">
+                      <span>💵</span> شحن / تسديد
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch (err) {}
+    }
+
+    // Modal الشحن المالي
+    function openRechargeModal(driverId, name, balance) {
+      document.getElementById('recharge-driver-id').value = driverId;
+      document.getElementById('recharge-driver-name').innerText = name;
+      document.getElementById('recharge-driver-curr-balance').innerText = `${parseFloat(balance).toLocaleString()} دج`;
+      document.getElementById('recharge-amount').value = '';
+      document.getElementById('modal-recharge-wallet').classList.remove('hidden');
+    }
+
+    function closeRechargeModal() {
+      document.getElementById('modal-recharge-wallet').classList.add('hidden');
+    }
+
+    function setRechargeAmount(amt) {
+      document.getElementById('recharge-amount').value = amt;
+    }
+
+    async function submitRechargeWallet(event) {
+      event.preventDefault();
+      const driverId = document.getElementById('recharge-driver-id').value;
+      const amount = parseFloat(document.getElementById('recharge-amount').value);
+      const reference = document.getElementById('recharge-reference').value;
+      const btn = document.getElementById('btn-submit-recharge');
+
+      btn.disabled = true;
+      btn.innerText = 'جاري الشحن والتسجيل...';
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers/${driverId}/wallet/top-up`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ amount, reference })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت عملية الشحن'));
+        } else {
+          alert('✅ تم شحن رصيد السائق بنجاح وتحديث المحفظة');
+          closeRechargeModal();
+          loadFinances();
+          loadDrivers();
+        }
+      } catch (e) {
+        alert('❌ حدث خطأ في الاتصال بالخادم');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✅</span> تأكيد الشحن الفوري';
+      }
     }
 
     function connectSocket() {
@@ -2410,9 +2742,11 @@
           if (badge) badge.innerText = 'سيرفر متصل 🟢';
         });
         socket.on('new_order_available', () => {
+          playNotificationChime('new_order');
           if (adminToken) loadDashboard();
         });
         socket.on('order_status_changed', () => {
+          playNotificationChime('status_change');
           if (adminToken) loadDashboard();
         });
       } catch (e) {}
