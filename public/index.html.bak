@@ -1,0 +1,3563 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>👑 لوحة تحكم الإدارة | Moto Delivery Admin Panel</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Socket.io CDN -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; }
+    .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* تحسين وتخصيص الخريطة التكتيكية الفخمة */
+    .leaflet-container {
+      background: #090d16 !important;
+      font-family: inherit !important;
+    }
+    .leaflet-popup-content-wrapper {
+      background: rgba(15, 23, 42, 0.94) !important;
+      backdrop-filter: blur(14px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border-radius: 18px !important;
+      color: #f1f5f9 !important;
+      box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(16, 185, 129, 0.2) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content {
+      margin: 12px 14px !important;
+      line-height: 1.4 !important;
+    }
+    .leaflet-popup-tip {
+      background: rgba(15, 23, 42, 0.94) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.4) !important;
+    }
+    .leaflet-control-zoom a {
+      background-color: rgba(15, 23, 42, 0.9) !important;
+      color: #94a3b8 !important;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.6) !important;
+      backdrop-filter: blur(8px) !important;
+      transition: all 0.2s !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background-color: #1e293b !important;
+      color: #f8fafc !important;
+    }
+
+    /* أنيميشن نبضات الرادار للسائقين المتصلين */
+    @keyframes radar-pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8), 0 0 15px rgba(16, 185, 129, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 16px rgba(16, 185, 129, 0), 0 0 25px rgba(16, 185, 129, 0.2);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 10px rgba(16, 185, 129, 0);
+      }
+    }
+    .marker-pulse-online {
+      animation: radar-pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+
+    /* تحويل خريطة الشوارع لمظهر تكتيكي ليلي داكن بدون أي مفتاح وبدون أي علامة مائية */
+    .leaflet-tile-pane .dark-map-tiles {
+      filter: invert(100%) hue-rotate(180deg) brightness(88%) contrast(98%) !important;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col bg-[#0b0f19]">
+
+  <!-- شاشة تسجيل الدخول (Écran de Connexion) -->
+  <div id="login-screen" class="fixed inset-0 bg-[#0b0f19]/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl w-full max-w-md p-8 border border-slate-800 shadow-2xl relative overflow-hidden">
+      <!-- Glow effects -->
+      <div class="absolute -top-16 -right-16 w-48 h-48 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-center mb-8 relative">
+        <div class="w-16 h-16 bg-gradient-to-tr from-amber-500 to-amber-300 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-lg shadow-amber-500/20 mb-3 border border-amber-400/30">
+          🏍️
+        </div>
+        <h2 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-amber-200 to-slate-100 bg-clip-text text-transparent">
+          MMO Delivery Platform
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">بوابة تسجيل دخول الإدارة وفريق العمل (Admin & Agents)</p>
+      </div>
+
+      <form id="form-login" onsubmit="handleLoginSubmit(event)" class="space-y-4 relative">
+        <div id="login-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center font-medium"></div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">اسم المستخدم أو رقم الهاتف (Login / Téléphone)</label>
+          <input type="text" id="login-phone" required placeholder="admin أو 01000000000" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-amber-400 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">كلمة المرور (Mot de passe)</label>
+          <input type="password" id="login-pass" required placeholder="admin أو Password123!" class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition">
+        </div>
+
+        <button type="submit" id="btn-login-submit" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3 rounded-xl shadow-lg shadow-amber-500/25 transition transform active:scale-95 text-sm mt-2 flex items-center justify-center gap-2">
+          <span>🚀</span> دخول لوحة التحكم (Se connecter)
+        </button>
+
+        <!-- روابط الدخول السريع للاختبار -->
+        <div class="pt-4 border-t border-slate-800 text-center space-y-2">
+          <p class="text-[11px] text-slate-400">حسابات تجريبية سريعة بنقرة واحدة (Comptes de test):</p>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button type="button" onclick="fillTestAccount('admin', 'admin')" class="bg-slate-800/80 hover:bg-slate-800 border border-amber-500/30 text-amber-300 py-1.5 px-2 rounded-lg font-semibold transition text-[11px]">
+              👑 المدير (admin / admin)
+            </button>
+            <button type="button" onclick="fillTestAccount('agent', 'agent')" class="bg-slate-800/80 hover:bg-slate-800 border border-sky-500/30 text-sky-300 py-1.5 px-2 rounded-lg font-semibold transition text-[11px]">
+              🎧 وكيل (agent / agent)
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 text-center">
+          <button type="button" onclick="changeServerUrl()" class="text-[11px] text-slate-500 hover:text-amber-400 underline transition inline-flex items-center gap-1">
+            <span>⚙️</span> <span id="server-status-label">رابط السيرفر: سحابي متصل</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- لوحة التحكم الكاملة (لوحة المشرف) -->
+  <div id="dashboard-screen" class="flex-1 flex flex-col hidden">
+    <!-- شريط التنقل العلوي -->
+    <header class="bg-slate-900/90 border-b border-slate-800 px-6 py-3.5 flex justify-between items-center sticky top-0 z-40">
+      <div class="flex items-center gap-3">
+        <div class="bg-amber-500/20 text-amber-400 p-2 rounded-xl text-2xl">🏍️</div>
+        <div>
+          <h1 class="text-lg font-bold bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">لوحة إدارة منصة موتو دليفري</h1>
+          <p class="text-[11px] text-slate-400">نظام المراقبة والتحكم اللحظي — الجزائر 🇩🇿</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="socket-badge" class="text-xs text-slate-300 font-medium">سيرفر متصل</span>
+        </div>
+
+        <a href="/client.html" target="_blank" class="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <span>📱</span> <span class="hidden md:inline">تطبيق الزبون (Client)</span>
+        </a>
+
+        <a href="/simulator.html" target="_blank" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-sm">
+          <span>🎮</span> <span class="hidden md:inline">محاكي العمليات (Simulateur)</span>
+        </a>
+
+        <button id="btn-toggle-sound" onclick="toggleAudioNotifications()" title="كتم/تفعيل التنبيهات الصوتية" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-2.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1">
+          <span id="sound-icon">🔔</span>
+        </button>
+
+        <button onclick="loadDashboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
+          <span>🔄</span> <span class="hidden sm:inline">تحديث</span>
+        </button>
+
+        <!-- شارة الملف الشخصي للمستخدم الحالي (Profil Utilisateur) -->
+        <div id="current-user-badge" class="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-2.5 py-1.5 rounded-xl">
+          <div id="user-avatar" class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-black flex items-center justify-center text-xs border border-amber-500/30">
+            👑
+          </div>
+          <div class="text-right">
+            <div id="user-display-name" class="text-xs font-bold text-slate-100 leading-tight">المدير العام</div>
+            <div id="user-role-badge" class="text-[10px] text-amber-400 font-semibold leading-none">مدير عام (Admin)</div>
+          </div>
+          <button onclick="logoutAdmin()" title="تسجيل الخروج (Se déconnecter)" class="mr-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 p-1.5 rounded-lg transition">
+            🚪
+          </button>
+        </div>
+      </div>
+    </header>
+
+  <!-- المحتوى الرئيسي -->
+  <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+
+    <!-- 1. بطاقات الإحصائيات التفاعلية (Interactive KPI Cards) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <!-- 1. إجمالي المبيعات / الطلبات -->
+      <div onclick="switchTab('orders')" class="glass-card p-4 rounded-2xl relative overflow-hidden cursor-pointer hover:border-amber-400/50 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">حجم المعاملات (GMV)</div>
+          <span class="text-[10px] bg-slate-800 text-slate-400 group-hover:text-amber-400 group-hover:bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700/60 transition">الطلبات ↗️</span>
+        </div>
+        <div class="text-xl font-black text-white mt-2" id="kpi-gmv">0.00 DZD</div>
+        <div class="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+          <span>📦</span> <span id="kpi-delivered-count">0</span> طلب مكتمل
+        </div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-slate-800/30 group-hover:text-slate-800/50 select-none transition">💰</div>
+      </div>
+
+      <!-- 2. عمولة المنصة -->
+      <div onclick="switchTab('settings')" class="glass-card p-4 rounded-2xl relative overflow-hidden border-amber-500/30 cursor-pointer hover:border-amber-400 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">أرباح عمولة المنصة (<span id="kpi-commission-percent">15</span>%)</div>
+          <span class="text-[10px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30 transition">تعديل التسعيرة ⚙️</span>
+        </div>
+        <div class="text-xl font-black text-amber-400 mt-2" id="kpi-commission">0.00 DZD</div>
+        <div class="text-xs text-slate-400 mt-1">تقتطع تلقائياً من المحافظ</div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-amber-500/10 group-hover:text-amber-500/20 select-none transition">💎</div>
+      </div>
+
+      <!-- 3. أسطول السائقين (Chwafra) -->
+      <div onclick="switchTab('drivers')" class="glass-card p-4 rounded-2xl relative overflow-hidden cursor-pointer hover:border-emerald-400/50 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">أسطول السائقين (Chwafra)</div>
+          <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30 transition">السائقين ↗️</span>
+        </div>
+        <div class="text-xl font-black text-emerald-400 mt-2"><span id="kpi-online-drivers">0</span> <span class="text-xs text-emerald-500 font-normal">متصل الآن</span></div>
+        <div class="text-xs text-slate-400 mt-1">من إجمالي <span id="kpi-total-drivers" class="font-bold text-slate-200">0</span> سائق مسجل</div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-emerald-500/10 group-hover:text-emerald-500/20 select-none transition">🛵</div>
+      </div>
+
+      <!-- 4. قائمة الزبائن (Les Clients) -->
+      <div onclick="switchTab('clients')" class="glass-card p-4 rounded-2xl relative overflow-hidden cursor-pointer hover:border-sky-400/50 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">الزبائن والعملاء (Clients)</div>
+          <span class="text-[10px] bg-sky-500/10 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/30 transition">الزبائن ↗️</span>
+        </div>
+        <div class="text-xl font-black text-sky-400 mt-2" id="kpi-total-clients">0</div>
+        <div class="text-xs text-slate-400 mt-1">زبائن مسجلين يطلبون التوصيل</div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-sky-500/10 group-hover:text-sky-500/20 select-none transition">👥</div>
+      </div>
+
+      <!-- 5. طلبات التوثيق المعلقة (KYC) -->
+      <div onclick="switchTab('kyc')" class="glass-card p-4 rounded-2xl relative overflow-hidden cursor-pointer hover:border-purple-400/50 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">بانتظار التوثيق (KYC)</div>
+          <span class="text-[10px] bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/30 transition">مراجعة الملفات ↗️</span>
+        </div>
+        <div class="text-xl font-black text-purple-400 mt-2" id="kpi-pending-kyc">0</div>
+        <div class="text-xs text-amber-400 mt-1">يحتاجون مراجعة رخصة السياقة</div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-purple-500/10 group-hover:text-purple-500/20 select-none transition">📑</div>
+      </div>
+
+      <!-- 6. فريق العمل والوكلاء (Agents) -->
+      <div onclick="switchTab('agents')" class="glass-card p-4 rounded-2xl relative overflow-hidden cursor-pointer hover:border-indigo-400/50 hover:scale-[1.02] active:scale-95 transition duration-200 group shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="text-slate-400 text-xs font-semibold">فريق العمل (Agents)</div>
+          <span class="text-[10px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/30 transition">+ إضافة وكيل ↗️</span>
+        </div>
+        <div class="text-xl font-black text-indigo-400 mt-2" id="kpi-total-agents">0</div>
+        <div class="text-xs text-slate-400 mt-1">مشرفين ووكلاء في البانل</div>
+        <div class="absolute -left-2 -bottom-2 text-6xl text-indigo-500/10 group-hover:text-indigo-500/20 select-none transition">🛡️</div>
+      </div>
+    </div>
+
+    <!-- 2. خريطة الأسطول الحية والمخططات -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- الخريطة التفاعلية -->
+      <div class="lg:col-span-2 glass-card rounded-2xl p-5 flex flex-col h-[420px] relative">
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <h2 class="font-bold text-base flex items-center gap-2 text-slate-100">
+              <span>🗺️</span> رادار الأسطول الحي (Live Fleet Radar)
+            </h2>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              بث مباشر
+            </span>
+          </div>
+
+          <!-- شريط أدوات الخريطة (تبديل الثيم + تمركز) -->
+          <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs shadow-lg">
+            <button onclick="changeMapStyle('dark')" id="btn-map-dark" title="وضع تكتيكي ليلي خفيف وفائق السرعة" class="px-2.5 py-1 rounded-lg font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 transition flex items-center gap-1">
+              🌙 ليلي داكن
+            </button>
+            <button onclick="changeMapStyle('satellite')" id="btn-map-sat" title="أقمار صناعية عالية الدقة" class="px-2.5 py-1 rounded-lg font-semibold text-slate-400 hover:text-slate-200 transition flex items-center gap-1">
+              🛰️ قمر صناعي
+            </button>
+            <button onclick="changeMapStyle('voyager')" id="btn-map-voyager" title="وضع ملاحة نقي وواضح" class="px-2.5 py-1 rounded-lg font-semibold text-slate-400 hover:text-slate-200 transition flex items-center gap-1">
+              ☀️ نهاري
+            </button>
+            <div class="w-px h-4 bg-slate-700/80 mx-1"></div>
+            <button onclick="recenterMap()" title="إعادة التمركز على الجزائر العاصمة" class="px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-1 font-mono text-[11px]">
+              🎯 العاصمة
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 relative rounded-xl overflow-hidden z-10 border border-slate-700/50 shadow-inner">
+          <div id="admin-map" class="w-full h-full"></div>
+
+          <!-- شارة HUD العائمة فوق الخريطة -->
+          <div class="absolute bottom-3 right-3 z-[400] bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-700/80 shadow-2xl flex items-center gap-3 text-xs pointer-events-none">
+            <span class="flex items-center gap-1.5 font-bold text-emerald-400">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span id="hud-online-drivers">0</span> متصل
+            </span>
+            <span class="text-slate-600">|</span>
+            <span class="flex items-center gap-1.5 text-slate-400 font-medium">
+              <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+              <span id="hud-offline-drivers">0</span> غير متصل
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- رسم بياني للطلبات -->
+      <div class="glass-card rounded-2xl p-5 flex flex-col h-[420px] justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-bold text-base flex items-center gap-2">
+            <span>📊</span> توزيع حالات الطلبات
+          </h2>
+          <span id="chart-total-orders" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-lg border border-slate-700 font-mono font-semibold">0 طلب</span>
+        </div>
+
+        <div class="flex-1 flex flex-col items-center justify-center relative my-auto">
+          <!-- حاوية دائرية مدمجة وصغيرة الحجم متناسقة -->
+          <div class="relative w-[180px] h-[180px] flex items-center justify-center">
+            <canvas id="ordersChart" width="180" height="180"></canvas>
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+              <span class="text-[10px] text-slate-400 font-semibold">إجمالي الطلبات</span>
+              <span class="text-2xl font-black text-slate-100 font-mono" id="chart-center-count">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- إحصائيات سريعة ومنسقة أسفل الرسم -->
+        <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800/80 text-center">
+          <div class="bg-slate-800/40 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-emerald-400 font-semibold flex items-center justify-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span> مكتمل
+            </div>
+            <div class="text-sm font-bold text-slate-200 font-mono mt-0.5" id="stat-delivered-count">0</div>
+          </div>
+          <div class="bg-slate-800/40 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-amber-400 font-semibold flex items-center justify-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span> معلق
+            </div>
+            <div class="text-sm font-bold text-slate-200 font-mono mt-0.5" id="stat-pending-count">0</div>
+          </div>
+          <div class="bg-slate-800/40 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-sky-400 font-semibold flex items-center justify-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-sky-500"></span> قيد التوصيل
+            </div>
+            <div class="text-sm font-bold text-slate-200 font-mono mt-0.5" id="stat-in-progress-count">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. التبويبات لإدارة السائقين والتوثيق والطلبات والزبائن -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      <!-- أزرار التبويب -->
+      <div class="flex border-b border-slate-800 bg-slate-900/50 overflow-x-auto">
+        <button onclick="switchTab('drivers')" id="tab-btn-drivers" class="px-6 py-4 font-semibold text-sm border-b-2 border-amber-400 text-amber-400 transition whitespace-nowrap">
+          🛵 أسطول السائقين (Chwafra) (<span id="count-drivers">0</span>)
+        </button>
+        <button onclick="switchTab('clients')" id="tab-btn-clients" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          👥 قائمة الزبائن (Clients) (<span id="count-clients">0</span>)
+        </button>
+        <button onclick="switchTab('kyc')" id="tab-btn-kyc" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          📑 طلبات التوثيق المعلقة KYC (<span id="count-kyc">0</span>)
+        </button>
+        <button onclick="switchTab('orders')" id="tab-btn-orders" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          📦 إدارة الطلبات (<span id="count-orders">0</span>)
+        </button>
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          ⚙️ الأسعار والعروض والعمولة
+        </button>
+        <button onclick="switchTab('agents')" id="tab-btn-agents" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          🛡️ فريق العمل والوكلاء (<span id="count-agents">0</span>)
+        </button>
+        <button onclick="switchTab('finances')" id="tab-btn-finances" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+          💼 المالية والمحافظ (Finances)
+        </button>
+      </div>
+
+      <!-- محتوى التبويب: السائقين -->
+      <div id="tab-drivers" class="p-5">
+        <!-- شريط إدارة الأسطول -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>🛵</span> أسطول الدراجات النارية والتحكم
+            </h3>
+            <p class="text-xs text-slate-400">إضافة دراجين جدد، حظر الحسابات (Block)، التجميد المؤقت (Suspend)، أو حذف السائق (Supprimer)</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+              <input type="text" id="search-drivers" oninput="filterDriversTable()" placeholder="🔍 بحث بالاسم، الهاتف، أو اللوحة..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans">
+              <button onclick="clearDriversSearch()" id="btn-clear-drivers-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="openAddDriverModal()" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-xs whitespace-nowrap">
+              <span>➕</span> إضافة سائق (Ajouter Livreur)
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-sm">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+              <tr>
+                <th class="p-3">السائق</th>
+                <th class="p-3">الهاتف</th>
+                <th class="p-3">لوحة الدراجة</th>
+                <th class="p-3">التقييم</th>
+                <th class="p-3">الاتصال</th>
+                <th class="p-3">حالة الحساب</th>
+                <th class="p-3">حالة العمل</th>
+                <th class="p-3">المحفظة</th>
+                <th class="p-3 text-center">التحكم والإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="drivers-table-body" class="divide-y divide-slate-800/60">
+              <tr><td colspan="9" class="text-center p-6 text-slate-500">جاري تحميل السائقين...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- محتوى التبويب: الزبائن والعملاء (Les Clients) -->
+      <div id="tab-clients" class="p-5 hidden">
+        <!-- شريط إدارة الزبائن -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>👥</span> قائمة الزبائن والعملاء (Les Clients)
+            </h3>
+            <p class="text-xs text-slate-400">متابعة سجل طلبات الزبائن، إجمالي مصاريفهم، حظر الحسابات، أو حذف الزبون (Supprimer)</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+              <input type="text" id="search-clients" oninput="filterClientsTable()" placeholder="🔍 بحث باسم الزبون أو الهاتف..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400 transition font-sans">
+              <button onclick="clearClientsSearch()" id="btn-clear-clients-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="openAddClientModal()" class="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-lg shadow-sky-500/20 transition transform active:scale-95 text-xs whitespace-nowrap">
+              <span>➕</span> إضافة زبون (Ajouter Client)
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-sm">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+              <tr>
+                <th class="p-3">اسم الزبون</th>
+                <th class="p-3">رقم الهاتف</th>
+                <th class="p-3">البريد الإلكتروني</th>
+                <th class="p-3">تاريخ التسجيل</th>
+                <th class="p-3">عدد الطلبات</th>
+                <th class="p-3">إجمالي الإنفاق</th>
+                <th class="p-3">حالة الحساب</th>
+                <th class="p-3 text-center">التحكم</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body" class="divide-y divide-slate-800/60">
+              <tr><td colspan="8" class="text-center p-6 text-slate-500">جاري تحميل الزبائن...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- محتوى التبويب: التوثيق KYC -->
+      <div id="tab-kyc" class="p-5 overflow-x-auto hidden">
+        <table class="w-full text-right text-sm">
+          <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+            <tr>
+              <th class="p-3">اسم السائق</th>
+              <th class="p-3">رقم الهاتف</th>
+              <th class="p-3">لوحة المركبة</th>
+              <th class="p-3">تاريخ التسجيل</th>
+              <th class="p-3">قرار الإدارة (KYC)</th>
+            </tr>
+          </thead>
+          <tbody id="kyc-table-body" class="divide-y divide-slate-800/60">
+            <tr><td colspan="5" class="text-center p-6 text-slate-500">لا يوجد سائقين معلقين حالياً.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- محتوى التبويب: الطلبات (Les Commandes) -->
+      <div id="tab-orders" class="p-5 hidden">
+        <!-- شريط إدارة ومتابعة الطلبات -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>📦</span> إدارة ومتابعة الطلبات (Gestion des Commandes)
+            </h3>
+            <p class="text-xs text-slate-400">تعديل سعر الطلب (Modifier prix)، تطبيق برومو وخصم (Code promo)، أو حذف الطلب نهائياً (Supprimer)</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-72">
+              <input type="text" id="search-orders" oninput="filterOrdersTable()" placeholder="🔍 بحث برقم الطلب، الزبون، أو السائق..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans">
+              <button onclick="clearOrdersSearch()" id="btn-clear-orders-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="loadDashboard()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition">
+              <span>🔄</span> تحديث
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-sm">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+              <tr>
+                <th class="p-3">رقم الطلب</th>
+                <th class="p-3">الزبون</th>
+                <th class="p-3">السائق</th>
+                <th class="p-3">مسار التوصيل</th>
+                <th class="p-3">المبلغ</th>
+                <th class="p-3">الخصم / البرومو</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3">التوقيت</th>
+                <th class="p-3 text-center">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body" class="divide-y divide-slate-800/60">
+              <tr><td colspan="9" class="text-center p-6 text-slate-500">جاري تحميل الطلبات...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- محتوى التبويب: الإعدادات والتسعيرة والعروض -->
+      <div id="tab-settings" class="p-5 space-y-8 hidden">
+        <!-- 1. بطاقة إعدادات التسعيرة وعمولة المنصة -->
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+            <div>
+              <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                <span>⚙️</span> إعدادات التسعيرة وعمولة التطبيق (Tarification & Commission)
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">تعديل سعر الكيلومتر، فتح العداد، نسبة العمولة، ومضاعف أوقات الذروة مباشرة</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="settings-save-status" class="text-xs text-emerald-400 font-semibold hidden">✅ تم الحفظ بنجاح</span>
+              <button onclick="submitUpdateSettings()" id="btn-save-settings" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-sm flex items-center gap-2">
+                <span>💾</span> حفظ وتحديث الأسعار
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- فتح العداد -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>سعر بداية الرحلة (فتح العداد)</span>
+                <span class="text-amber-400 font-bold text-xs">DZD</span>
+              </label>
+              <input type="number" step="10" id="setting-base-fee" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-amber-400 font-mono focus:outline-none focus:border-amber-400" placeholder="200">
+              <p class="text-[11px] text-slate-400 mt-1.5">المبلغ الأساسي الذي يبدأ به احتساب أي توصيل</p>
+            </div>
+
+            <!-- سعر الكيلومتر -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>سعر الكيلومتر الواحد (Tarif/Km)</span>
+                <span class="text-amber-400 font-bold text-xs">DZD / كم</span>
+              </label>
+              <input type="number" step="5" id="setting-per-km-rate" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-amber-400 font-mono focus:outline-none focus:border-amber-400" placeholder="50">
+              <p class="text-[11px] text-slate-400 mt-1.5">المبلغ المحتسب لكل كيلومتر مسافة مقطوعة</p>
+            </div>
+
+            <!-- الحد الأدنى للطلب -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>الحد الأدنى لسعر الطلب (Prix Min)</span>
+                <span class="text-amber-400 font-bold text-xs">DZD</span>
+              </label>
+              <input type="number" step="10" id="setting-min-price" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-amber-400 font-mono focus:outline-none focus:border-amber-400" placeholder="250">
+              <p class="text-[11px] text-slate-400 mt-1.5">أقل مبلغ لطلب التوصيل مهما كانت المسافة قصيرة</p>
+            </div>
+
+            <!-- نسبة عمولة المنصة -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>نسبة عمولة المنصة (Commission)</span>
+                <span class="text-emerald-400 font-bold text-xs">%</span>
+              </label>
+              <input type="number" step="0.5" id="setting-commission-rate" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-emerald-400 font-mono focus:outline-none focus:border-emerald-400" placeholder="15">
+              <p class="text-[11px] text-slate-400 mt-1.5">النسبة المقتطعة تلقائياً من محفظة السائق فور تسليم الطلب</p>
+            </div>
+
+            <!-- سقف ديون السائق -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>سقف ديون السائق (Plafond Dette)</span>
+                <span class="text-red-400 font-bold text-xs">DZD</span>
+              </label>
+              <input type="number" step="500" id="setting-debt-limit" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-red-400 font-mono focus:outline-none focus:border-red-400" placeholder="3000">
+              <p class="text-[11px] text-slate-400 mt-1.5">عند بلوغ هذا الحد يتم حظر السائق مؤقتاً حتى سداد ديونه</p>
+            </div>
+
+            <!-- مضاعف سعر الذروة -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+              <label class="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                <span>مضاعف ساعات الذروة (Surge Multiplier)</span>
+                <span class="text-purple-400 font-bold text-xs">x</span>
+              </label>
+              <input type="number" step="0.1" id="setting-surge-multiplier" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-base font-bold text-purple-400 font-mono focus:outline-none focus:border-purple-400" placeholder="1.0">
+              <p class="text-[11px] text-slate-400 mt-1.5">1.0 = عادي، 1.3 = زيادة 30% وقت الأمطار أو ضغط الطلبات</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. بطاقة إدارة أكواد الخصم والعروض الترويجية -->
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+            <div>
+              <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                <span>🎟️</span> أكواد الخصم والعروض الترويجية (Codes Promo)
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">إنشاء عروض تخفيض لزبائن المنصة، تحديد نسب الخصم وسقف الاستخدام والصلاحية</p>
+            </div>
+            <button onclick="openAddPromoModal()" class="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-sky-500/20 transition transform active:scale-95 text-sm">
+              <span>➕</span> إنشاء كود خصم جديد (Créer Promo)
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-right text-sm">
+              <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+                <tr>
+                  <th class="p-3">الكود (Code)</th>
+                  <th class="p-3">نوع وقيمة الخصم</th>
+                  <th class="p-3">أقصى خصم</th>
+                  <th class="p-3">أدنى طلب</th>
+                  <th class="p-3">الاستخدامات</th>
+                  <th class="p-3">تاريخ الانتهاء</th>
+                  <th class="p-3">الحالة</th>
+                  <th class="p-3 text-center">الإجراءات والتحكم</th>
+                </tr>
+              </thead>
+              <tbody id="promos-table-body" class="divide-y divide-slate-800/60">
+                <tr><td colspan="8" class="text-center p-6 text-slate-500">جاري تحميل أكواد الخصم...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- محتوى التبويب: فريق العمل والوكلاء (Profils Agents & Admins) -->
+      <div id="tab-agents" class="p-5 space-y-6 hidden">
+        <!-- بطاقة الإرشادات والشرح الإداري -->
+        <div class="bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl font-bold border border-indigo-500/40 shadow-lg shadow-indigo-500/20">
+              🛡️
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                <span>إدارة الوكلاء وفريق العمل</span>
+                <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30 font-normal">صلاحيات الإدارة 👑</span>
+              </h3>
+              <p class="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                بصفتك المدير العام، يمكنك إنشاء حسابات الوكلاء (Agents) وتعيين كلمات المرور لهم وتوليد بطاقة بيانات الدخول لتسليمها للموظف ليسجل دخوله فوراً إلى لوحة التحكم، ومتابعة الأسطول والطلبات والزبائن.
+              </p>
+            </div>
+          </div>
+          <button onclick="openAddAgentModal()" id="btn-open-add-agent" class="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-black px-5 py-3 rounded-xl shadow-lg shadow-indigo-500/30 transition transform active:scale-95 text-sm">
+            <span>➕</span> إنشاء بروفايل وكيل جديد (Créer Agent)
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-sm">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+              <tr>
+                <th class="p-3">عضو الفريق (Agent)</th>
+                <th class="p-3">رقم الهاتف (Identifiant)</th>
+                <th class="p-3">البريد الإلكتروني</th>
+                <th class="p-3">الدور والصلاحية (Rôle)</th>
+                <th class="p-3">حالة الحساب</th>
+                <th class="p-3">تاريخ الإضافة</th>
+                <th class="p-3 text-center">التحكم والإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="agents-table-body" class="divide-y divide-slate-800/60">
+              <tr><td colspan="7" class="text-center p-6 text-slate-500">جاري تحميل فريق العمل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: إضافة سائق جديد (Ajouter Livreur) -->
+    <div id="modal-add-driver" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+            <span>➕</span> إضافة سائق / دراج جديد (Ajouter Livreur)
+          </h3>
+          <button onclick="closeAddDriverModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-add-driver" onsubmit="submitAddDriver(event)" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">الاسم الكامل (Nom & Prénom) *</label>
+            <input type="text" id="new-driver-name" required placeholder="مثال: كريم بلحاج" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">رقم الهاتف (Numéro) *</label>
+              <input type="tel" id="new-driver-phone" required placeholder="0555123456" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور (Mot de passe)</label>
+              <input type="password" id="new-driver-pass" placeholder="افتراضياً: 123456" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">لوحة الترقيم (Matricule Moto) *</label>
+              <input type="text" id="new-driver-plate" required placeholder="مثال: 16-88776-00" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">البريد الإلكتروني (اختياري)</label>
+              <input type="email" id="new-driver-email" placeholder="karim@delivery.dz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">خط العرض (Latitude)</label>
+              <input type="number" step="any" id="new-driver-lat" value="36.7538" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">خط الطول (Longitude)</label>
+              <input type="number" step="any" id="new-driver-lng" value="3.0588" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+            <input type="checkbox" id="new-driver-verify" checked class="w-4 h-4 accent-amber-500 rounded">
+            <label for="new-driver-verify" class="text-xs text-slate-300 cursor-pointer">
+              <span class="font-bold text-slate-200">توثيق وتفعيل فوري (KYC Approuvé)</span> — تمكينه من استقبال الطلبات فوراً
+            </label>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeAddDriverModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء (Annuler)
+            </button>
+            <button type="submit" id="btn-submit-driver" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-amber-500/20 transition">
+              حفظ وإضافة السائق ✅
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: التجميد المؤقت (Suspend Modal) -->
+    <div id="modal-suspend-driver" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-base text-amber-400 flex items-center gap-2">
+            <span>⏸️</span> تجميد السائق مؤقتاً (Suspendre)
+          </h3>
+          <button onclick="closeSuspendModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <div class="p-6 space-y-4">
+          <p class="text-sm text-slate-300">
+            أنت على وشك تجميد السائق: <strong id="suspend-driver-name" class="text-amber-400"></strong> مؤقتاً. لن يتمكن من تسجيل الدخول كـ متصل أو قبول أي طلبات توصيل.
+          </p>
+          <input type="hidden" id="suspend-driver-id">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">سبب التجميد الإداري (اختياري)</label>
+            <textarea id="suspend-driver-reason" rows="3" placeholder="مثال: شكوى تأخير متكرر / التحقق من الوثائق..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button onclick="closeSuspendModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button onclick="submitSuspendDriver()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm transition">
+              تأكيد التجميد المؤقت ⏸️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: إضافة زبون جديد (Ajouter Client) -->
+    <div id="modal-add-client" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+            <span>➕</span> إضافة زبون جديد (Ajouter Client)
+          </h3>
+          <button onclick="closeAddClientModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-add-client" onsubmit="submitAddClient(event)" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">اسم الزبون الكامل *</label>
+            <input type="text" id="new-client-name" required placeholder="مثال: ياسمين قادري" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">رقم الهاتف *</label>
+            <input type="tel" id="new-client-phone" required placeholder="0555667788" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-sky-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور (اختياري)</label>
+            <input type="password" id="new-client-pass" placeholder="افتراضياً: 123456" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">البريد الإلكتروني (اختياري)</label>
+            <input type="email" id="new-client-email" placeholder="client@mmo.dz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400">
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeAddClientModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-client" class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-sky-500/20 transition">
+              حفظ وإضافة الزبون ✅
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: إنشاء كود خصم جديد (Créer Code Promo) -->
+    <div id="modal-add-promo" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+            <span>🎟️</span> إنشاء كود خصم ترويجي جديد (Créer Code Promo)
+          </h3>
+          <button onclick="closeAddPromoModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-add-promo" onsubmit="submitAddPromo(event)" class="p-6 space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">كود الخصم (Code Promo) *</label>
+              <input type="text" id="new-promo-code" required placeholder="مثال: RAMADAN20" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-amber-400 font-mono font-bold uppercase placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">نوع الخصم (Type) *</label>
+              <select id="new-promo-type" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+                <option value="percentage">نسبة مئوية (%)</option>
+                <option value="fixed">مبلغ ثابت (DZD)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">قيمة الخصم (Valeur) *</label>
+              <input type="number" step="any" id="new-promo-value" required placeholder="مثال: 20 أو 200" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">أقصى خصم (Plafond DZD - للنسبة)</label>
+              <input type="number" step="any" id="new-promo-max" placeholder="مثال: 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">الحد الأدنى للطلب (DZD - اختياري)</label>
+              <input type="number" step="any" id="new-promo-min-order" placeholder="مثال: 300" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">سقف الاستخدام (Limite)</label>
+              <input type="number" id="new-promo-limit" value="500" placeholder="مثال: 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">تاريخ انتهاء الصلاحية (Date d'expiration - اختياري)</label>
+            <input type="date" id="new-promo-expires" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeAddPromoModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء (Annuler)
+            </button>
+            <button type="submit" id="btn-submit-promo" class="bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-sky-500/20 transition">
+              إنشاء وحفظ الكود ✅
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: إضافة وكيل أو مشرف جديد (Ajouter Agent) -->
+    <div id="modal-add-agent" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+            <span>➕</span> إضافة عضو فريق جديد (Profil Agent / Staff)
+          </h3>
+          <button onclick="closeAddAgentModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-add-agent" onsubmit="submitAddAgent(event)" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">الاسم الكامل (Nom & Prénom) *</label>
+            <input type="text" id="new-agent-name" required placeholder="مثال: أمين حمداوي" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">رقم الهاتف (تسجيل الدخول) *</label>
+            <input type="tel" id="new-agent-phone" required placeholder="0666112233" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 font-mono focus:outline-none focus:border-purple-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور (Mot de passe)</label>
+            <input type="password" id="new-agent-pass" placeholder="افتراضياً: Agent123!" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">البريد الإلكتروني (اختياري)</label>
+            <input type="email" id="new-agent-email" placeholder="amine@mmo.dz" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-400">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">الدور والصلاحية (Rôle & Permissions) *</label>
+            <select id="new-agent-role" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-purple-400">
+              <option value="agent">🎧 وكيل عمليات ودعم (Agent Support / Dispatcher)</option>
+              <option value="admin">👑 مدير عام (Administrateur - كامل الصلاحيات)</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeAddAgentModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-agent" class="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-purple-500/20 transition">
+              حفظ وإضافة الوكيل ✅
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: بطاقة تسليم بيانات الدخول للوكيل (Fiche Identifiants Agent) -->
+    <div id="modal-agent-credentials" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-6 bg-gradient-to-br from-indigo-950/70 to-slate-900 border-b border-slate-800 text-center relative">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-3xl mx-auto mb-3 shadow-lg shadow-emerald-500/20">
+            🎉
+          </div>
+          <h3 class="font-black text-xl text-slate-100">تم إنشاء بروفايل الوكيل بنجاح!</h3>
+          <p class="text-xs text-slate-400 mt-1">انسخ معلومات الدخول وسلمها للوكيل ليسجل دخوله للوحة التحكم</p>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700/80 space-y-2.5 font-mono text-sm">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+              <span class="text-xs text-slate-400 font-sans">اسم الوكيل:</span>
+              <strong id="cred-agent-name" class="text-slate-100 font-sans">--</strong>
+            </div>
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+              <span class="text-xs text-slate-400 font-sans">رقم الهاتف (Login):</span>
+              <strong id="cred-agent-phone" class="text-amber-400 font-bold">--</strong>
+            </div>
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+              <span class="text-xs text-slate-400 font-sans">كلمة المرور:</span>
+              <strong id="cred-agent-pass" class="text-emerald-400 font-bold">--</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-400 font-sans">الرتبة في النظام:</span>
+              <strong id="cred-agent-role" class="text-indigo-400 font-sans">--</strong>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="copyAgentCredentials()" id="btn-copy-creds" class="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold py-3 rounded-xl text-sm shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+              <span>📋</span> نسخ معلومات الدخول
+            </button>
+            <button onclick="closeAgentCredentialsModal()" class="px-5 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">
+              تم ✅
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: تعديل سعر الطلب (Modifier Prix Commande) -->
+    <div id="modal-edit-order-price" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>✏️</span> تعديل سعر الطلب (Modifier le Prix)
+          </h3>
+          <button onclick="closeEditOrderPriceModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-edit-order-price" onsubmit="submitEditOrderPrice(event)" class="p-6 space-y-4">
+          <input type="hidden" id="edit-order-id">
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-4 text-xs space-y-2">
+            <div class="flex justify-between items-center text-slate-400">
+              <span>رقم الطلب:</span>
+              <span id="edit-order-id-display" class="font-mono text-amber-400 font-bold text-sm">--</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-400">
+              <span>السعر الإجمالي الحالي:</span>
+              <span id="edit-order-current-price-display" class="font-bold text-slate-200 text-sm">-- DZD</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">السعر الجديد المطلوب (DZD) *</label>
+            <div class="relative">
+              <input type="number" step="any" min="0" id="edit-order-new-price" required placeholder="مثال: 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-emerald-400 font-mono placeholder-slate-500 focus:outline-none focus:border-amber-400">
+              <span class="absolute left-3 top-3.5 text-xs text-slate-400 font-mono font-bold">DZD</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">سيتم تحديث المبلغ فوراً في قاعدة البيانات وحسابات المنصة.</p>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeEditOrderPriceModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-order-price" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5">
+              <span>💾</span> حفظ وتعديل السعر
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: تطبيق كود خصم أو تخفيض على الطلب (Appliquer Promo / Réduction) -->
+    <div id="modal-apply-order-promo" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>🏷️</span> تطبيق كود خصم أو تخفيض (Appliquer Promo)
+          </h3>
+          <button onclick="closeApplyOrderPromoModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-apply-order-promo" onsubmit="submitApplyOrderPromo(event)" class="p-6 space-y-4">
+          <input type="hidden" id="promo-order-id">
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-4 text-xs space-y-2">
+            <div class="flex justify-between items-center text-slate-400">
+              <span>رقم الطلب:</span>
+              <span id="promo-order-id-display" class="font-mono text-amber-400 font-bold text-sm">--</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-400">
+              <span>السعر الإجمالي الحالي:</span>
+              <span id="promo-order-current-price-display" class="font-bold text-slate-200 text-sm">-- DZD</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">الخيار 1: إدخال كود خصم ترويجي (Code Promo)</label>
+            <input type="text" id="promo-order-code" placeholder="مثال: BIENVENUE أو RAMADAN20" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-bold uppercase text-amber-400 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            <p class="text-[11px] text-slate-400 mt-1">يتم احتساب الخصم تلقائياً حسب قيمة ونسبة الكود المدخل.</p>
+          </div>
+
+          <div class="relative flex py-1 items-center">
+            <div class="flex-grow border-t border-slate-800"></div>
+            <span class="flex-shrink mx-3 text-[11px] text-slate-500 font-bold">أو تخفيض يدوي</span>
+            <div class="flex-grow border-t border-slate-800"></div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">الخيار 2: مبلغ تخفيض مباشر (DZD)</label>
+            <div class="relative">
+              <input type="number" step="any" min="0" id="promo-order-discount" placeholder="مثال: 100 DZD" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-emerald-400 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+              <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">DZD</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">سيتم خصم هذا المبلغ مباشرة من إجمالي الطلب.</p>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeApplyOrderPromoModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-order-promo" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
+              <span>🏷️</span> تطبيق الخصم
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- محتوى التبويب: المالية والمحافظ -->
+    <div id="tab-finances" class="p-5 hidden">
+      <!-- شريط الإحصائيات المالية المتقدمة -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 shadow-lg shadow-emerald-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-emerald-400 font-semibold">إجمالي عمولات المنصة المحصلة</span>
+            <span class="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-lg">💰</span>
+          </div>
+          <div class="text-2xl font-black text-emerald-300 font-mono" id="fin-total-commissions">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">صافي أرباح التطبيق المقتطعة من التوصيل</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-sky-950/60 to-slate-900 border border-sky-500/30 rounded-2xl p-4 shadow-lg shadow-sky-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-sky-400 font-semibold">إجمالي أرصدة السائقين الإيجابية</span>
+            <span class="p-2 rounded-xl bg-sky-500/20 text-sky-300 text-lg">💳</span>
+          </div>
+          <div class="text-2xl font-black text-sky-300 font-mono" id="fin-total-balances">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">أموال مشحونة مسبقاً لدى السائقين</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-rose-950/60 to-slate-900 border border-rose-500/30 rounded-2xl p-4 shadow-lg shadow-rose-950/20">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-rose-400 font-semibold">إجمالي ديون السائقين النشطة</span>
+            <span class="p-2 rounded-xl bg-rose-500/20 text-rose-300 text-lg">⚠️</span>
+          </div>
+          <div class="text-2xl font-black text-rose-400 font-mono" id="fin-total-debts">0.00 دج</div>
+          <p class="text-[11px] text-slate-400 mt-1">مبالغ مستحقة من كاش التوصيل لم تُسدد بعد</p>
+        </div>
+      </div>
+
+      <!-- جدول أرصدة السائقين والمحافظ -->
+      <div class="mb-8">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>🛵</span> محافظ السائقين وحالة الديون (Soldes Livreur)
+          </h3>
+          <span class="text-xs text-slate-400 font-mono">سقف الدين التلقائي: 3,000 دج</span>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">السائق</th>
+                <th class="px-4 py-3">الهاتف</th>
+                <th class="px-4 py-3">الرصيد الحالي</th>
+                <th class="px-4 py-3">سقف الدين</th>
+                <th class="px-4 py-3">الحالة المالية</th>
+                <th class="px-4 py-3 text-center">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="finances-drivers-table-body" class="divide-y divide-slate-800 text-slate-200">
+              <tr><td colspan="6" class="text-center py-6 text-slate-500">جاري تحميل المحافظ...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- جدول سجل آخر المعاملات المالية -->
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>📑</span> سجل المعاملات المالية الأخيرة (Journal des Transactions)
+          </h3>
+          <button onclick="loadFinances()" class="text-xs text-amber-400 hover:underline">تحديث السجل 🔄</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-slate-800 max-h-96 overflow-y-auto">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-800 sticky top-0">
+              <tr>
+                <th class="px-4 py-3">النوع</th>
+                <th class="px-4 py-3">المستفيد</th>
+                <th class="px-4 py-3">المبلغ</th>
+                <th class="px-4 py-3">الرصيد بعد العملية</th>
+                <th class="px-4 py-3">البيان / الوصف</th>
+                <th class="px-4 py-3">التاريخ والوقت</th>
+              </tr>
+            </thead>
+            <tbody id="finances-transactions-table-body" class="divide-y divide-slate-800 text-slate-200">
+              <tr><td colspan="6" class="text-center py-6 text-slate-500">جاري تحميل المعاملات...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: إعادة تعيين كلمة المرور (Changer MDP Agent) -->
+  <div id="modal-reset-agent-pass" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+          <span>🔑</span> تغيير كلمة مرور الوكيل
+        </h3>
+        <button onclick="closeResetAgentPasswordModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="form-reset-agent-pass" onsubmit="submitResetAgentPassword(event)" class="p-6 space-y-4">
+        <p class="text-xs text-slate-300">
+          أنت بصدد تعيين كلمة مرور جديدة للوكيل: <strong id="reset-agent-name" class="text-amber-400"></strong>
+        </p>
+        <input type="hidden" id="reset-agent-id">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">كلمة المرور الجديدة *</label>
+          <input type="text" id="reset-agent-new-pass" required placeholder="أدخل كلمة مرور جديدة (6 أحرف على الأقل)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-indigo-400">
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeResetAgentPasswordModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+            إلغاء
+          </button>
+          <button type="submit" id="btn-submit-reset-pass" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition">
+            حفظ كلمة المرور الجديدة 💾
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: شحن محفظة سائق / تسديد نقدي (Recharger Portefeuille) -->
+  <div id="modal-recharge-wallet" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+        <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+          <span>💵</span> شحن محفظة السائق / تسديد مستحقات
+        </h3>
+        <button onclick="closeRechargeModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+      <form id="form-recharge-wallet" onsubmit="submitRechargeWallet(event)" class="p-6 space-y-4">
+        <input type="hidden" id="recharge-driver-id">
+        
+        <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
+          <p class="text-xs text-slate-300">السائق: <strong id="recharge-driver-name" class="text-amber-400 font-bold"></strong></p>
+          <p class="text-xs text-slate-400 mt-1">الرصيد الحالي: <span id="recharge-driver-curr-balance" class="font-mono font-bold"></span></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">مبلغ الشحن (دج / DZD) *</label>
+          <input type="number" id="recharge-amount" required min="10" step="50" placeholder="مثال: 1000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-400">
+          <div class="grid grid-cols-4 gap-2 mt-2">
+            <button type="button" onclick="setRechargeAmount(500)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+500 دج</button>
+            <button type="button" onclick="setRechargeAmount(1000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+1,000 دج</button>
+            <button type="button" onclick="setRechargeAmount(2000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+2,000 دج</button>
+            <button type="button" onclick="setRechargeAmount(5000)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 rounded-lg text-xs font-mono font-semibold">+5,000 دج</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">البيان / طريقة الدفع</label>
+          <select id="recharge-reference" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+            <option value="تسديد نقدي كاش في المكتب">تسديد نقدي كاش في المكتب</option>
+            <option value="تحويل بريدي موب BaridiMob">تحويل بريدي موب BaridiMob</option>
+            <option value="تسوية عمولات دورية">تسوية عمولات دورية</option>
+            <option value="مكافأة ترويجية / بونص">مكافأة ترويجية / بونص (Bonus)</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeRechargeModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-200 transition">
+            إلغاء
+          </button>
+          <button type="submit" id="btn-submit-recharge" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2">
+            <span>✅</span> تأكيد الشحن الفوري
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة التنبيه والإشعارات التكتيكية الفخمة (Custom Alert & Notification Modal) -->
+  <div id="modal-app-alert" onclick="if(event.target === this) closeAppAlert()" class="fixed inset-0 bg-[#0b0f19]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div class="glass-card rounded-3xl w-full max-w-sm p-6 border border-slate-700/80 shadow-2xl shadow-black/80 relative text-center overflow-hidden transform transition-all duration-300 scale-95" id="modal-app-alert-card">
+      <!-- Glow effect -->
+      <div id="app-alert-glow" class="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-25 pointer-events-none bg-emerald-500"></div>
+
+      <!-- Icon Badge -->
+      <div id="app-alert-icon-wrap" class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-slate-700/60 bg-slate-800/80">
+        <span id="app-alert-icon">✨</span>
+      </div>
+
+      <!-- Title -->
+      <h3 id="app-alert-title" class="text-base font-black text-slate-100 mb-2 leading-tight">
+        إشعار النظام
+      </h3>
+
+      <!-- Message -->
+      <p id="app-alert-message" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line mb-6 font-medium">
+        رسالة التنبيه...
+      </p>
+
+      <!-- Button -->
+      <button onclick="closeAppAlert()" id="app-alert-btn" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-2.5 rounded-xl shadow-lg shadow-amber-500/25 transition transform active:scale-95 text-xs flex items-center justify-center gap-2">
+        <span>موافق (D'accord)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- نافذة التأكيد التكتيكية للعمليات الحساسة كالحذف (Custom Confirm Dialog Modal) -->
+  <div id="modal-app-confirm" onclick="if(event.target === this) handleAppConfirmResult(false)" class="fixed inset-0 bg-[#0b0f19]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div class="glass-card rounded-3xl w-full max-w-sm p-6 border border-slate-700/80 shadow-2xl shadow-black/80 relative text-center overflow-hidden transform transition-all duration-300 scale-95" id="modal-app-confirm-card">
+      <!-- Glow effect -->
+      <div id="app-confirm-glow" class="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-25 pointer-events-none bg-rose-500"></div>
+
+      <!-- Icon Badge -->
+      <div id="app-confirm-icon-wrap" class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-rose-500/30 bg-rose-500/10 text-rose-400">
+        <span id="app-confirm-icon">⚠️</span>
+      </div>
+
+      <!-- Title -->
+      <h3 id="app-confirm-title" class="text-base font-black text-slate-100 mb-2 leading-tight">
+        تأكيد العملية
+      </h3>
+
+      <!-- Message -->
+      <p id="app-confirm-message" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line mb-6 font-medium">
+        هل أنت متأكد من المتابعة؟
+      </p>
+
+      <!-- Buttons -->
+      <div class="flex items-center gap-3">
+        <button onclick="handleAppConfirmResult(false)" id="app-confirm-cancel-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl border border-slate-700 transition transform active:scale-95 text-xs">
+          إلغاء (Annuler)
+        </button>
+        <button onclick="handleAppConfirmResult(true)" id="app-confirm-ok-btn" class="flex-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black py-2.5 rounded-xl shadow-lg shadow-rose-600/30 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5">
+          <span>نعم، تأكيد</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  </main>
+</div>
+
+  <script>
+    // 🌐 رابط السيرفر السحابي المباشر الدائم (Render.com 24/7)
+    const DEFAULT_CLOUD_API = 'https://mmo-backend-tx2s.onrender.com';
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let savedHost = localStorage.getItem('mmo_api_host');
+    if (savedHost && !isLocalHost && (savedHost.includes('localhost') || savedHost.includes('trycloudflare'))) {
+      localStorage.removeItem('mmo_api_host');
+      savedHost = null;
+    }
+    let API_HOST = savedHost || (isLocalHost ? 'http://localhost:3000' : DEFAULT_CLOUD_API);
+    let API_BASE = `${API_HOST}/api/v1`;
+
+    function changeServerUrl() {
+      const current = API_HOST;
+      const input = prompt('⚙️ إعدادات رابط السيرفر (Backend API URL):\n\nأدخل رابط السيرفر السحابي أو المحلي:', current);
+      if (input && input.trim()) {
+        const clean = input.trim().replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
+        localStorage.setItem('mmo_api_host', clean);
+        window.location.reload();
+      }
+    }
+
+    let adminToken = localStorage.getItem('mmo_admin_token') || '';
+    let currentUser = null;
+    let map = null;
+    let chart = null;
+    let driverMarkers = [];
+    let currentMapTileLayers = [];
+    let currentMapStyle = 'dark';
+    let allDrivers = [];
+    let allClients = [];
+    let allOrders = [];
+
+    // 🎨 نظام التنبيهات والتأكيدات الرسومية التكتيكية وسط الشاشة (Custom Tactical Dialog System)
+    let appAlertCallback = null;
+    let appConfirmResolver = null;
+
+    function showAppAlert(message, title = '', type = 'info', onClose = null) {
+      const modal = document.getElementById('modal-app-alert');
+      const card = document.getElementById('modal-app-alert-card');
+      const iconEl = document.getElementById('app-alert-icon');
+      const iconWrap = document.getElementById('app-alert-icon-wrap');
+      const titleEl = document.getElementById('app-alert-title');
+      const msgEl = document.getElementById('app-alert-message');
+      const glowEl = document.getElementById('app-alert-glow');
+      const btn = document.getElementById('app-alert-btn');
+
+      if (!modal || !card) return;
+
+      appAlertCallback = onClose;
+
+      let cleanMsg = String(message || '');
+      let autoTitle = title;
+      let icon = '🔔';
+      let glowClass = 'bg-sky-500';
+      let iconWrapClass = 'bg-sky-500/15 border-sky-500/30 text-sky-400';
+      let btnClass = 'bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 text-slate-950 font-black';
+
+      // استكشاف نوع التنبيه تلقائياً من الأيقونة أو النص
+      if (type === 'success' || cleanMsg.includes('✅') || cleanMsg.includes('🎉') || cleanMsg.includes('نجاح') || cleanMsg.includes('تم حذف') || cleanMsg.includes('🗑️') || cleanMsg.includes('تم شحن') || cleanMsg.includes('تم اعتماد')) {
+        autoTitle = title || (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف') ? 'تم الحذف بنجاح' : 'تمت العملية بنجاح');
+        icon = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? '🗑️' : (cleanMsg.includes('🎉') ? '🎉' : '✅');
+        glowClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-rose-500' : 'bg-emerald-500';
+        iconWrapClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400';
+        btnClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 text-white font-bold' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 text-slate-950 font-black';
+      } else if (type === 'error' || cleanMsg.includes('❌') || cleanMsg.includes('خطأ') || cleanMsg.includes('فشل')) {
+        autoTitle = title || 'تنبيه خطأ';
+        icon = '❌';
+        glowClass = 'bg-rose-600';
+        iconWrapClass = 'bg-rose-500/15 border-rose-500/30 text-rose-400';
+        btnClass = 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 text-white font-bold';
+      } else if (type === 'warning' || cleanMsg.includes('⚠️') || cleanMsg.includes('تحذير') || cleanMsg.includes('تجميد') || cleanMsg.includes('حظر')) {
+        autoTitle = title || 'تنبيه إداري';
+        icon = '⚠️';
+        glowClass = 'bg-amber-500';
+        iconWrapClass = 'bg-amber-500/15 border-amber-500/30 text-amber-400';
+        btnClass = 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black';
+      }
+
+      // إزالة الإيموجي في بداية ونهاية النص لمنع التكرار
+      cleanMsg = cleanMsg.replace(/^([🗑️❌✅🎉⚠️🔔]+)\s*/u, '').replace(/\s*([🗑️❌✅🎉⚠️🔔]+)$/u, '');
+
+      iconEl.innerText = icon;
+      glowEl.className = `absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none ${glowClass}`;
+      iconWrap.className = `w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border ${iconWrapClass}`;
+      titleEl.innerText = autoTitle || 'إشعار النظام';
+      msgEl.innerText = cleanMsg;
+      btn.className = `w-full py-2.5 rounded-xl shadow-lg transition transform active:scale-95 text-xs flex items-center justify-center gap-2 ${btnClass}`;
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 10);
+    }
+
+    function closeAppAlert() {
+      const modal = document.getElementById('modal-app-alert');
+      const card = document.getElementById('modal-app-alert-card');
+      if (!modal || !card) return;
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        if (typeof appAlertCallback === 'function') {
+          appAlertCallback();
+          appAlertCallback = null;
+        }
+      }, 150);
+    }
+
+    // تأكيد العمليات الحساسة كالحذف (Custom Confirm Dialog)
+    function showAppConfirm({ title = 'تأكيد العملية', message, icon = '⚠️', confirmText = 'نعم، متابعة', cancelText = 'إلغاء', type = 'danger' }) {
+      return new Promise((resolve) => {
+        appConfirmResolver = resolve;
+
+        const modal = document.getElementById('modal-app-confirm');
+        const card = document.getElementById('modal-app-confirm-card');
+        const iconEl = document.getElementById('app-confirm-icon');
+        const iconWrap = document.getElementById('app-confirm-icon-wrap');
+        const titleEl = document.getElementById('app-confirm-title');
+        const msgEl = document.getElementById('app-confirm-message');
+        const glowEl = document.getElementById('app-confirm-glow');
+        const okBtn = document.getElementById('app-confirm-ok-btn');
+        const cancelBtn = document.getElementById('app-confirm-cancel-btn');
+
+        if (!modal || !card) {
+          resolve(true);
+          return;
+        }
+
+        iconEl.innerText = icon;
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        cancelBtn.innerText = cancelText;
+        okBtn.innerHTML = `<span>${confirmText}</span>`;
+
+        if (type === 'danger') {
+          glowEl.className = 'absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none bg-rose-500';
+          iconWrap.className = 'w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-rose-500/30 bg-rose-500/15 text-rose-400';
+          okBtn.className = 'flex-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black py-2.5 rounded-xl shadow-lg shadow-rose-600/30 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5';
+        } else {
+          glowEl.className = 'absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none bg-amber-500';
+          iconWrap.className = 'w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-amber-500/30 bg-amber-500/15 text-amber-400';
+          okBtn.className = 'flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          card.classList.remove('scale-95');
+          card.classList.add('scale-100');
+        }, 10);
+      });
+    }
+
+    function handleAppConfirmResult(result) {
+      const modal = document.getElementById('modal-app-confirm');
+      const card = document.getElementById('modal-app-confirm-card');
+      if (!modal || !card) return;
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        if (appConfirmResolver) {
+          appConfirmResolver(result);
+          appConfirmResolver = null;
+        }
+      }, 150);
+    }
+
+    // إغلاق النوافذ عند الضغط على Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const alertModal = document.getElementById('modal-app-alert');
+        if (alertModal && !alertModal.classList.contains('hidden')) {
+          closeAppAlert();
+        }
+        const confirmModal = document.getElementById('modal-app-confirm');
+        if (confirmModal && !confirmModal.classList.contains('hidden')) {
+          handleAppConfirmResult(false);
+        }
+      }
+    });
+
+    // تحويل كل استدعاءات alert الأصلية في المتصفح إلى النافذة الرسومية الفخمة وسط الشاشة تلقائياً
+    window.alert = function(msg) {
+      showAppAlert(msg);
+    };
+
+    // مزودات خرائط رسمية ومجانية 100% بدون أي حظر وبدون أي علامة مائية (Esri Global CDN)
+    const MAP_PROVIDERS = {
+      dark: {
+        layers: [
+          {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+            options: {
+              maxZoom: 18,
+              attribution: 'Esri Dark Canvas'
+            }
+          },
+          {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+            options: {
+              maxZoom: 18,
+              opacity: 0.95
+            }
+          }
+        ]
+      },
+      satellite: {
+        layers: [
+          {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            options: {
+              maxZoom: 19,
+              attribution: 'Esri World Imagery'
+            }
+          },
+          {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+            options: {
+              maxZoom: 19,
+              opacity: 0.9
+            }
+          }
+        ]
+      },
+      voyager: {
+        layers: [
+          {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+            options: {
+              maxZoom: 19,
+              attribution: 'Esri Street Map'
+            }
+          }
+        ]
+      }
+    };
+
+    // تعبئة بيانات حساب تجريبي للتجربة السريعة
+    function fillTestAccount(phone, pass) {
+      document.getElementById('login-phone').value = phone;
+      document.getElementById('login-pass').value = pass;
+    }
+
+    // إرسال نموذج تسجيل الدخول (Se connecter)
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      const phone = document.getElementById('login-phone').value.trim();
+      const password = document.getElementById('login-pass').value.trim();
+      const btn = document.getElementById('btn-login-submit');
+      const errBox = document.getElementById('login-error');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> جاري التحقق والدخول...';
+      errBox.classList.add('hidden');
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || !res.data?.access_token) {
+          errBox.innerText = res.message || 'بيانات الدخول غير صحيحة';
+          errBox.classList.remove('hidden');
+        } else {
+          const user = res.data.user;
+          // السماح فقط للمدراء والوكلاء بالدخول إلى لوحة التحكم
+          if (user.role !== 'admin' && user.role !== 'agent') {
+            errBox.innerText = 'عذراً، هذا الحساب ليس لديه صلاحية الدخول للوحة التحكم الإدارية (مخصص للإدارة والوكلاء فقط).';
+            errBox.classList.remove('hidden');
+            return;
+          }
+
+          adminToken = res.data.access_token;
+          localStorage.setItem('mmo_admin_token', adminToken);
+          currentUser = user;
+
+          applyUserProfile(currentUser);
+          showDashboardView();
+          loadDashboard();
+        }
+      } catch (err) {
+        errBox.innerText = 'حدث خطأ أثناء الاتصال بالخادم';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀</span> دخول لوحة التحكم (Se connecter)';
+      }
+    }
+
+    // التحقق من الجلسة المحفوظة عند فتح الصفحة
+    async function checkAuthOnStartup() {
+      if (!adminToken) {
+        showLoginView();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/me`, {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || !res.data?.id) {
+          logoutAdmin();
+        } else {
+          currentUser = res.data;
+          applyUserProfile(currentUser);
+          showDashboardView();
+          loadDashboard();
+        }
+      } catch (e) {
+        showLoginView();
+      }
+    }
+
+    // تطبيق بيانات المستخدم وصلاحياته على الواجهة
+    function applyUserProfile(user) {
+      if (!user) return;
+      const nameEl = document.getElementById('user-display-name');
+      const roleEl = document.getElementById('user-role-badge');
+      const avatarEl = document.getElementById('user-avatar');
+
+      if (nameEl) nameEl.innerText = user.name || 'مستخدم الإدارة';
+      if (roleEl) {
+        if (user.role === 'admin') {
+          roleEl.innerText = 'مدير عام (Admin)';
+          roleEl.className = 'text-[10px] text-amber-400 font-semibold leading-none';
+          if (avatarEl) {
+            avatarEl.innerText = '👑';
+            avatarEl.className = 'w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 font-black flex items-center justify-center text-xs border border-amber-500/30';
+          }
+        } else {
+          roleEl.innerText = 'وكيل دعم وعمليات (Agent)';
+          roleEl.className = 'text-[10px] text-sky-400 font-semibold leading-none';
+          if (avatarEl) {
+            avatarEl.innerText = '🎧';
+            avatarEl.className = 'w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 font-black flex items-center justify-center text-xs border border-sky-500/30';
+          }
+        }
+      }
+
+      // ضبط ظهور الأزرار الحساسة الخاصة بالمدير فقط
+      const isSuperAdmin = (user.role === 'admin');
+      const btnSaveSettings = document.getElementById('btn-save-settings');
+      if (btnSaveSettings) {
+        btnSaveSettings.style.display = isSuperAdmin ? 'flex' : 'none';
+      }
+      const btnAddAgent = document.getElementById('btn-open-add-agent');
+      if (btnAddAgent) {
+        btnAddAgent.style.display = isSuperAdmin ? 'flex' : 'none';
+      }
+    }
+
+    function showLoginView() {
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('dashboard-screen').classList.add('hidden');
+    }
+
+    function showDashboardView() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard-screen').classList.remove('hidden');
+      if (!map) {
+        initMap();
+        connectSocket();
+      }
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('mmo_admin_token');
+      adminToken = '';
+      currentUser = null;
+      showLoginView();
+    }
+
+    // 2. تهيئة الخريطة التكتيكية عالية السرعة
+    function initMap() {
+      map = L.map('admin-map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([36.7538, 3.0588], 12);
+
+      // تفعيل الوضع الليلي التكتيكي الخالي من العلامات المائية افتراضياً
+      changeMapStyle('dark');
+    }
+
+    // تبديل ستايل الخريطة (ليلي / قمر صناعي / نهاري)
+    function changeMapStyle(style) {
+      if (!map || !MAP_PROVIDERS[style]) return;
+      currentMapStyle = style;
+
+      // تحديث ألوان الأزرار
+      ['dark', 'sat', 'voyager'].forEach(k => {
+        const btn = document.getElementById(`btn-map-${k}`);
+        if (btn) {
+          btn.className = 'px-2.5 py-1 rounded-lg font-semibold text-slate-400 hover:text-slate-200 transition flex items-center gap-1';
+        }
+      });
+      const activeBtnId = style === 'satellite' ? 'btn-map-sat' : `btn-map-${style}`;
+      const activeBtn = document.getElementById(activeBtnId);
+      if (activeBtn) {
+        activeBtn.className = 'px-2.5 py-1 rounded-lg font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 transition flex items-center gap-1';
+      }
+
+      // إزالة الطبقات السابقة
+      currentMapTileLayers.forEach(l => map.removeLayer(l));
+      currentMapTileLayers = [];
+
+      // إضافة الطبقات الجديدة
+      const provider = MAP_PROVIDERS[style];
+      provider.layers.forEach(l => {
+        const layer = L.tileLayer(l.url, l.options).addTo(map);
+        currentMapTileLayers.push(layer);
+      });
+    }
+
+    // إعادة التمركز على العاصمة بحركة طيران سلسة (FlyTo Animation)
+    function recenterMap() {
+      if (!map) return;
+      map.flyTo([36.7538, 3.0588], 12, {
+        animate: true,
+        duration: 1.2
+      });
+    }
+
+    // 3. تحميل الإحصائيات والسائقين
+    async function loadDashboard() {
+      if (!adminToken) return;
+      const headers = { 'Authorization': `Bearer ${adminToken}` };
+
+      // أ. جلب الإحصائيات
+      try {
+        const analyticsRes = await fetch(`${API_BASE}/admin/analytics`, { headers }).then(r => r.json());
+        const analytics = analyticsRes.data || analyticsRes;
+        if (analytics) {
+          document.getElementById('kpi-gmv').innerText = (analytics.revenue?.totalGmv || 0).toLocaleString() + ' DZD';
+          document.getElementById('kpi-commission').innerText = (analytics.revenue?.platformCommission || 0).toLocaleString() + ' DZD';
+          document.getElementById('kpi-delivered-count').innerText = analytics.revenue?.deliveredOrders || 0;
+          document.getElementById('kpi-online-drivers').innerText = analytics.counts?.onlineDrivers || 0;
+          document.getElementById('kpi-total-drivers').innerText = analytics.counts?.totalDrivers || 0;
+          document.getElementById('kpi-pending-kyc').innerText = analytics.counts?.pendingKycDrivers || 0;
+          document.getElementById('count-kyc').innerText = analytics.counts?.pendingKycDrivers || 0;
+          if (document.getElementById('kpi-total-clients')) {
+            document.getElementById('kpi-total-clients').innerText = analytics.counts?.totalClients || 0;
+          }
+          if (document.getElementById('kpi-total-agents')) {
+            document.getElementById('kpi-total-agents').innerText = analytics.counts?.totalAgents || 0;
+          }
+          if (document.getElementById('kpi-commission-percent') && analytics.revenue?.commissionRate) {
+            document.getElementById('kpi-commission-percent').innerText = analytics.revenue.commissionRate;
+          }
+
+          if (typeof updateChart === 'function') updateChart(analytics.ordersByStatus || []);
+          if (typeof renderRecentOrders === 'function') renderRecentOrders(analytics.recentOrders || []);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب الإحصائيات:', err);
+      }
+
+      // جـ. جلب قائمة جميع الطلبات المنفذة (Les Commandes)
+      try {
+        const ordersRes = await fetch(`${API_BASE}/admin/orders`, { headers }).then(r => r.json());
+        const orders = ordersRes.data || ordersRes;
+        if (Array.isArray(orders)) {
+          renderRecentOrders(orders);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب الطلبات:', err);
+      }
+
+      // ب. جلب قائمة السائقين (Chwafra)
+      try {
+        const driversRes = await fetch(`${API_BASE}/admin/drivers`, { headers }).then(r => r.json());
+        const drivers = driversRes.data || driversRes;
+        if (Array.isArray(drivers)) {
+          if (document.getElementById('count-drivers')) document.getElementById('count-drivers').innerText = drivers.length;
+          renderDriversTable(drivers);
+          renderDriversOnMap(drivers);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب السائقين:', err);
+      }
+
+      // ج. جلب قائمة الزبائن (Les Clients)
+      try {
+        const clientsRes = await fetch(`${API_BASE}/admin/clients`, { headers }).then(r => r.json());
+        const clients = clientsRes.data || clientsRes;
+        if (Array.isArray(clients)) {
+          if (document.getElementById('count-clients')) document.getElementById('count-clients').innerText = clients.length;
+          if (document.getElementById('kpi-total-clients')) document.getElementById('kpi-total-clients').innerText = clients.length;
+          renderClientsTable(clients);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب الزبائن:', err);
+      }
+
+      // د. جلب سائقي KYC المعلقين
+      try {
+        const kycRes = await fetch(`${API_BASE}/admin/drivers/kyc-pending`, { headers }).then(r => r.json());
+        const kycDrivers = kycRes.data || kycRes;
+        if (Array.isArray(kycDrivers)) {
+          renderKycTable(kycDrivers);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب KYC:', err);
+      }
+
+      // هـ. جلب إعدادات المنصة والتسعيرة (Settings)
+      try {
+        const settingsRes = await fetch(`${API_BASE}/admin/settings`, { headers }).then(r => r.json());
+        const settings = settingsRes.data || settingsRes;
+        if (settings) {
+          populateSettingsForm(settings);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب الإعدادات:', err);
+      }
+
+      // و. جلب أكواد الخصم والعروض الترويجية (Promo Codes)
+      try {
+        const promosRes = await fetch(`${API_BASE}/admin/promos`, { headers }).then(r => r.json());
+        const promos = promosRes.data || promosRes;
+        if (Array.isArray(promos)) {
+          renderPromosTable(promos);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب أكواد الخصم:', err);
+      }
+
+      // ز. جلب قائمة فريق العمل والوكلاء (Staff / Agents)
+      try {
+        const agentsRes = await fetch(`${API_BASE}/admin/agents`, { headers }).then(r => r.json());
+        const agents = agentsRes.data || agentsRes;
+        if (Array.isArray(agents)) {
+          if (document.getElementById('count-agents')) document.getElementById('count-agents').innerText = agents.length;
+          renderAgentsTable(agents);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب فريق العمل:', err);
+      }
+    }
+
+    // رسم السائقين على الخريطة برادار حي وأيقونات تفاعلية فخمة
+    function renderDriversOnMap(drivers) {
+      if (!map) return;
+      driverMarkers.forEach(m => map.removeLayer(m));
+      driverMarkers = [];
+
+      let onlineCount = 0;
+      let offlineCount = 0;
+
+      drivers.forEach(d => {
+        if (d.is_online) onlineCount++;
+        else offlineCount++;
+
+        // نستخدم الإحداثيات المسجلة في قاعدة البيانات أو إحداثيات افتراضية
+        const lat = d.lat ? parseFloat(d.lat) : (36.7538 + (Math.random() - 0.5) * 0.08);
+        const lng = d.lng ? parseFloat(d.lng) : (3.0588 + (Math.random() - 0.5) * 0.12);
+
+        let markerHtml = '';
+        const firstName = (d.name || 'سائق').split(' ')[0];
+
+        if (d.kyc_status === 'suspended') {
+          // مجمّد مؤقتاً
+          markerHtml = `
+            <div class="relative flex flex-col items-center cursor-pointer group">
+              <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 to-amber-400 text-slate-950 flex items-center justify-center text-xs font-black shadow-lg shadow-amber-500/40 border-2 border-white">
+                ⏸️
+              </div>
+              <div class="mt-1 whitespace-nowrap bg-slate-900/95 backdrop-blur-sm text-[10px] font-bold text-amber-300 px-1.5 py-0.5 rounded-md border border-amber-500/40 shadow pointer-events-none">
+                ${firstName}
+              </div>
+            </div>
+          `;
+        } else if (!d.is_active) {
+          // محظور
+          markerHtml = `
+            <div class="relative flex flex-col items-center cursor-pointer opacity-75 group">
+              <div class="w-7 h-7 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-black shadow-md border-2 border-white">
+                🚫
+              </div>
+              <div class="mt-1 whitespace-nowrap bg-slate-900/95 text-[10px] font-bold text-red-400 px-1.5 py-0.5 rounded-md border border-red-500/30 pointer-events-none">
+                ${firstName}
+              </div>
+            </div>
+          `;
+        } else if (d.is_online) {
+          // متصل ونشط - نبض رادار حي وفخم (Radar Pulse)
+          markerHtml = `
+            <div class="relative flex flex-col items-center cursor-pointer group">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-emerald-400 text-white flex items-center justify-center text-sm shadow-xl shadow-emerald-500/50 border-2 border-white marker-pulse-online">
+                🏍️
+              </div>
+              <div class="mt-1 whitespace-nowrap bg-slate-900/95 backdrop-blur-sm text-[10px] font-black text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-500/40 shadow-lg pointer-events-none flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                ${firstName}
+              </div>
+            </div>
+          `;
+        } else {
+          // غير متصل
+          markerHtml = `
+            <div class="relative flex flex-col items-center cursor-pointer opacity-70 hover:opacity-100 transition group">
+              <div class="w-7 h-7 rounded-full bg-slate-700 text-slate-300 flex items-center justify-center text-xs font-bold border-2 border-slate-500 shadow">
+                🏍️
+              </div>
+              <div class="mt-1 whitespace-nowrap bg-slate-900/90 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-md border border-slate-700 pointer-events-none">
+                ${firstName}
+              </div>
+            </div>
+          `;
+        }
+
+        const customIcon = L.divIcon({
+          html: markerHtml,
+          className: 'custom-driver-marker',
+          iconSize: [40, 52],
+          iconAnchor: [20, 26],
+          popupAnchor: [0, -28]
+        });
+
+        const statusLabel = d.kyc_status === 'suspended' ? 'مجمّد مؤقتاً ⏸️' : (!d.is_active ? 'محظور 🚫' : (d.is_online ? 'متصل ومتاح 🟢' : 'غير متصل ⚪'));
+        const statusBadgeClass = d.kyc_status === 'suspended' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : (!d.is_active ? 'bg-red-500/20 text-red-400 border border-red-500/30' : (d.is_online ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700/60 text-slate-400 border border-slate-600/40'));
+
+        const popupContent = `
+          <div class="p-3 text-right" style="min-width: 220px; font-family: inherit;">
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-700/60">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl ${d.is_online ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-sm">
+                  🏍️
+                </div>
+                <div>
+                  <div class="font-bold text-slate-100 text-sm leading-tight">${d.name}</div>
+                  <div class="text-[10px] text-slate-400 font-mono mt-0.5">${d.vehicle_plate}</div>
+                </div>
+              </div>
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${statusBadgeClass}">
+                ${statusLabel}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs mb-3">
+              <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/50">
+                <span class="text-[10px] text-slate-400 block mb-0.5">رصيد المحفظة</span>
+                <span class="font-mono font-bold ${parseFloat(d.wallet_balance) < 0 ? 'text-red-400' : 'text-emerald-400'}">${d.wallet_balance} DZD</span>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-2 border border-slate-700/50">
+                <span class="text-[10px] text-slate-400 block mb-0.5">التقييم العام</span>
+                <span class="font-mono font-bold text-amber-400">⭐ ${d.current_rating || 5.0}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <a href="tel:${d.phone}" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-center py-1.5 rounded-xl text-xs font-semibold transition border border-slate-700 flex items-center justify-center gap-1">
+                <span>📞</span> ${d.phone}
+              </a>
+              <button onclick="switchTab('drivers')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-md">
+                إدارة
+              </button>
+            </div>
+          </div>
+        `;
+
+        const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+        marker.bindPopup(popupContent);
+        driverMarkers.push(marker);
+      });
+
+      // تحديث عدادات HUD فوق الخريطة
+      if (document.getElementById('hud-online-drivers')) {
+        document.getElementById('hud-online-drivers').innerText = onlineCount;
+      }
+      if (document.getElementById('hud-offline-drivers')) {
+        document.getElementById('hud-offline-drivers').innerText = offlineCount;
+      }
+    }
+
+    // جدول السائقين والتحكم الكامل (Ajouter, Bloquer, Suspendre, Supprimer, Recherche)
+    function renderDriversTable(drivers) {
+      allDrivers = drivers || [];
+      const query = (document.getElementById('search-drivers')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterDriversTable();
+      } else {
+        displayDriversRows(allDrivers);
+      }
+    }
+
+    function filterDriversTable() {
+      const query = (document.getElementById('search-drivers')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-drivers-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !query);
+      }
+
+      if (!query) {
+        displayDriversRows(allDrivers);
+        return;
+      }
+
+      const filtered = allDrivers.filter(d => {
+        const name = (d.name || '').toLowerCase();
+        const phone = (d.phone || '').toLowerCase();
+        const plate = (d.vehicle_plate || '').toLowerCase();
+        return name.includes(query) || phone.includes(query) || plate.includes(query);
+      });
+
+      displayDriversRows(filtered);
+    }
+
+    function clearDriversSearch() {
+      const input = document.getElementById('search-drivers');
+      if (input) input.value = '';
+      filterDriversTable();
+    }
+
+    function displayDriversRows(drivers) {
+      const tbody = document.getElementById('drivers-table-body');
+      if (!tbody) return;
+      if (!drivers || drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-500">لا يوجد أي نتائج مطابقة للبحث 🔍</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = drivers.map(d => {
+        const debt = parseFloat(d.wallet_balance || 0);
+        const debtClass = debt < 0 ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold';
+
+        // 1. شارة حالة الحساب (نشط / محظور)
+        const accountBadge = d.is_active
+          ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">نشط ✅</span>`
+          : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">محظور 🚫</span>`;
+
+        // 2. شارة حالة العمل والتوثيق (معتمد / مجمّد مؤقتاً / بانتظار التوثيق)
+        let workBadge = '';
+        if (d.kyc_status === 'suspended') {
+          workBadge = `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30" title="${d.rejection_reason || 'تجميد مؤقت'}">مجمّد مؤقتاً ⏸️</span>`;
+        } else if (d.kyc_status === 'approved' || d.is_verified) {
+          workBadge = `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">معتمد 🛵</span>`;
+        } else {
+          workBadge = `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/20 text-purple-400 border border-purple-500/30">بانتظار KYC ⏳</span>`;
+        }
+
+        // 3. زر التجميد المؤقت (Suspend) / فك التجميد (Activer)
+        const isSuspended = (d.kyc_status === 'suspended');
+        const suspendActionBtn = isSuspended
+          ? `<button onclick="toggleSuspendDriver('${d.driver_id}', false)" title="إلغاء التجميد وتمكين السائق من العمل" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 transition">
+               إلغاء التجميد ▶️
+             </button>`
+          : `<button onclick="openSuspendModal('${d.driver_id}', '${(d.name || '').replace(/'/g, "\\'")}')" title="تجميد مؤقت عن استقبال الطلبات" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition">
+               تجميد مؤقت ⏸️
+             </button>`;
+
+        // 4. زر الحظر الكلي (Bloquer) / رفع الحظر (Débloquer)
+        const blockActionBtn = d.is_active
+          ? `<button onclick="toggleBlockUser('${d.user_id}', false)" title="حظر الحساب كلياً من تسجيل الدخول" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">
+               حظر 🚫
+             </button>`
+          : `<button onclick="toggleBlockUser('${d.user_id}', true)" title="رفع الحظر والسماح بالدخول" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">
+               رفع الحظر 🔓
+             </button>`;
+
+        // 5. زر الحذف النهائي (Supprimer Chiffour)
+        const deleteActionBtn = `
+          <button onclick="deleteDriver('${d.driver_id}', '${(d.name || '').replace(/'/g, "\\'")}')" title="حذف السائق نهائياً من المنصة" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1">
+            <span>🗑️</span> حذف
+          </button>
+        `;
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-semibold text-slate-100">${d.name}</td>
+            <td class="p-3 text-slate-300 font-mono text-xs">${d.phone}</td>
+            <td class="p-3 text-slate-400 font-mono text-xs">${d.vehicle_plate}</td>
+            <td class="p-3 text-amber-400 text-xs">⭐ ${d.current_rating || 5.0}</td>
+            <td class="p-3">
+              <span class="px-2 py-0.5 rounded text-xs font-semibold ${d.is_online ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700/50 text-slate-400'}">
+                ${d.is_online ? 'متصل 🟢' : 'غير متصل ⚪'}
+              </span>
+            </td>
+            <td class="p-3">${accountBadge}</td>
+            <td class="p-3">${workBadge}</td>
+            <td class="p-3 text-xs ${debtClass}">${d.wallet_balance} DZD</td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                ${suspendActionBtn}
+                ${blockActionBtn}
+                ${deleteActionBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // حذف سائق نهائياً (Supprimer Livreur)
+    async function deleteDriver(driverId, driverName) {
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف السائق',
+        message: `هل أنت متأكد من حذف السائق "${driverName}" نهائياً من المنصة؟\n\n- سيتم إزالة حسابه ومحفظته بشكل آمن.\n- ستبقى الطلبات التاريخية محفوظة بالأرشيف المالي.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف السائق',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers/${driverId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ أثناء الحذف', 'error');
+        } else {
+          showAppAlert(`تم حذف السائق "${driverName}" بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
+          loadDashboard();
+          if (typeof loadFinances === 'function') loadFinances();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ اتصال', 'error');
+      }
+    }
+
+    // Modal إضافة سائق
+    function openAddDriverModal() {
+      document.getElementById('modal-add-driver').classList.remove('hidden');
+    }
+    function closeAddDriverModal() {
+      document.getElementById('modal-add-driver').classList.add('hidden');
+    }
+
+    // إرسال طلب إضافة السائق (Ajouter Livreur)
+    async function submitAddDriver(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btn-submit-driver');
+      btn.disabled = true;
+      btn.innerText = 'جاري الإضافة...';
+
+      const payload = {
+        name: document.getElementById('new-driver-name').value.trim(),
+        phone: document.getElementById('new-driver-phone').value.trim(),
+        password: document.getElementById('new-driver-pass').value.trim() || '123456',
+        vehicle_plate: document.getElementById('new-driver-plate').value.trim(),
+        email: document.getElementById('new-driver-email').value.trim() || undefined,
+        lat: parseFloat(document.getElementById('new-driver-lat').value) || 36.7538,
+        lng: parseFloat(document.getElementById('new-driver-lng').value) || 3.0588,
+        is_verified: document.getElementById('new-driver-verify').checked,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت إضافة السائق'));
+        } else {
+          alert('🎉 تم إضافة السائق بنجاح!');
+          closeAddDriverModal();
+          document.getElementById('form-add-driver').reset();
+          loadDashboard();
+        }
+      } catch (err) {
+        alert('حدث خطأ في الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'حفظ وإضافة السائق ✅';
+      }
+    }
+
+    // Modal التجميد المؤقت
+    function openSuspendModal(driverId, driverName) {
+      document.getElementById('suspend-driver-id').value = driverId;
+      document.getElementById('suspend-driver-name').innerText = driverName;
+      document.getElementById('suspend-driver-reason').value = '';
+      document.getElementById('modal-suspend-driver').classList.remove('hidden');
+    }
+    function closeSuspendModal() {
+      document.getElementById('modal-suspend-driver').classList.add('hidden');
+    }
+
+    // تأكيد التجميد المؤقت (Suspend)
+    async function submitSuspendDriver() {
+      const driverId = document.getElementById('suspend-driver-id').value;
+      const reason = document.getElementById('suspend-driver-reason').value.trim();
+
+      await toggleSuspendDriver(driverId, true, reason);
+      closeSuspendModal();
+    }
+
+    // تفعيل أو تجميد السائق (Suspend / Unsuspend API)
+    async function toggleSuspendDriver(driverId, isSuspended, reason) {
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers/${driverId}/suspend`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_suspended: isSuspended, reason })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت العملية'));
+        } else {
+          alert(isSuspended ? '⏸️ تم تجميد السائق مؤقتاً' : '▶️ تم رفع التجميد وتفعيل السائق بنجاح');
+          loadDashboard();
+        }
+      } catch (e) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      }
+    }
+
+    // حظر/إلغاء حظر الحساب كلياً (Block / Unblock API)
+    async function toggleBlockUser(userId, isActive) {
+      const actionText = isActive ? 'رفع الحظر وتنشيط الحساب' : 'حظر الحساب كلياً';
+      const ok = await showAppConfirm({
+        title: isActive ? 'تأكيد رفع الحظر' : 'تأكيد حظر الحساب',
+        message: `هل أنت متأكد من ${actionText}؟`,
+        icon: isActive ? '🔓' : '🚫',
+        confirmText: isActive ? '🔓 نعم، رفع الحظر' : '🚫 نعم، حظر الحساب',
+        cancelText: 'إلغاء',
+        type: isActive ? 'warning' : 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/users/${userId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_active: isActive })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ', 'error');
+        } else {
+          showAppAlert(isActive ? '🔓 تم رفع الحظر وتنشيط الحساب' : '🚫 تم حظر الحساب بنجاح', 'حالة الحساب', 'success');
+          loadDashboard();
+        }
+      } catch (e) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
+      }
+    }
+
+    // رسم بياني لحالات الطلبات (حجم أنيق وصغير مع إحصائيات)
+    function updateChart(stats) {
+      const canvas = document.getElementById('ordersChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const statusLabelsMap = {
+        'delivered': 'مكتمل',
+        'pending': 'معلق',
+        'accepted': 'مقبول',
+        'in_transit': 'في الطريق',
+        'cancelled': 'ملغى',
+      };
+
+      const colorMap = {
+        'delivered': '#10b981',   // أخضر
+        'pending': '#f59e0b',     // برتقالي
+        'accepted': '#3b82f6',    // أزرق
+        'in_transit': '#8b5cf6',  // بنفسجي
+        'cancelled': '#ef4444',   // أحمر
+      };
+
+      let totalOrders = 0;
+      let deliveredCount = 0;
+      let pendingCount = 0;
+      let inProgressCount = 0;
+
+      (stats || []).forEach(s => {
+        const count = parseInt(s.count) || 0;
+        totalOrders += count;
+        if (s.status === 'delivered') deliveredCount += count;
+        else if (s.status === 'pending') pendingCount += count;
+        else if (['accepted', 'in_transit', 'picked_up'].includes(s.status)) inProgressCount += count;
+      });
+
+      if (document.getElementById('chart-total-orders')) {
+        document.getElementById('chart-total-orders').innerText = `${totalOrders} طلب`;
+      }
+      if (document.getElementById('chart-center-count')) {
+        document.getElementById('chart-center-count').innerText = totalOrders;
+      }
+      if (document.getElementById('stat-delivered-count')) {
+        document.getElementById('stat-delivered-count').innerText = deliveredCount;
+      }
+      if (document.getElementById('stat-pending-count')) {
+        document.getElementById('stat-pending-count').innerText = pendingCount;
+      }
+      if (document.getElementById('stat-in-progress-count')) {
+        document.getElementById('stat-in-progress-count').innerText = inProgressCount;
+      }
+
+      const labels = (stats && stats.length) ? stats.map(s => statusLabelsMap[s.status] || s.status) : ['مكتمل', 'معلق', 'قيد التوصيل'];
+      const data = (stats && stats.length) ? stats.map(s => parseInt(s.count) || 0) : [1, 1, 1];
+      const bgColors = (stats && stats.length) ? stats.map(s => colorMap[s.status] || '#64748b') : ['#10b981', '#f59e0b', '#3b82f6'];
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: bgColors,
+            borderWidth: 3,
+            borderColor: '#0f172a',
+            hoverOffset: 5,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          cutout: '72%',
+          plugins: {
+            legend: {
+              display: false, // تم استبداله ببطاقات الإحصائيات الأنيقة أسفل الرسم
+            },
+            tooltip: {
+              rtl: true,
+              callbacks: {
+                label: function(context) {
+                  const val = context.raw || 0;
+                  const pct = totalOrders > 0 ? Math.round((val / totalOrders) * 100) : 0;
+                  return ` ${context.label}: ${val} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // جدول التوثيق KYC
+    function renderKycTable(drivers) {
+      const tbody = document.getElementById('kyc-table-body');
+      if (!tbody) return;
+      if (drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-500">لا يوجد أي سائق معلق حالياً ✅</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = drivers.map(d => `
+        <tr class="hover:bg-slate-800/40 transition">
+          <td class="p-3 font-semibold">${d.name}</td>
+          <td class="p-3 font-mono text-slate-300">${d.phone}</td>
+          <td class="p-3 font-mono text-slate-400">${d.vehicle_plate}</td>
+          <td class="p-3 text-xs text-slate-500">${new Date(d.created_at).toLocaleDateString('ar-DZ')}</td>
+          <td class="p-3 flex gap-2">
+            <button onclick="verifyDriver('${d.driver_id}', 'approved')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-semibold transition">
+              اعتماد وقبول ✅
+            </button>
+            <button onclick="verifyDriver('${d.driver_id}', 'rejected')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-xs font-semibold transition">
+              رفض ❌
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // اعتماد أو رفض السائق (KYC)
+    async function verifyDriver(driverId, status) {
+      try {
+        await fetch(`${API_BASE}/admin/drivers/${driverId}/kyc`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+        alert(status === 'approved' ? '✅ تم اعتماد السائق بنجاح!' : '❌ تم رفض السائق');
+        loadDashboard();
+      } catch (e) {
+        alert('حدث خطأ');
+      }
+    }
+
+    // ─── جدول وإدارة الطلبات (Orders Management) ──────────────────────────────
+    function renderRecentOrders(orders) {
+      allOrders = orders || [];
+      if (document.getElementById('count-orders')) {
+        document.getElementById('count-orders').innerText = allOrders.length;
+      }
+      const query = (document.getElementById('search-orders')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterOrdersTable();
+      } else {
+        displayOrdersRows(allOrders);
+      }
+    }
+
+    function displayOrdersRows(orders) {
+      const tbody = document.getElementById('orders-table-body');
+      if (!tbody) return;
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-500">لا توجد أي طلبات مطابقة.</td></tr>`;
+        return;
+      }
+
+      const statusMap = {
+        'delivered': { label: 'مكتمل ✅', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
+        'pending': { label: 'معلق ⏳', class: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' },
+        'accepted': { label: 'مقبول 🏍️', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' },
+        'in_transit': { label: 'في الطريق 🚀', class: 'bg-purple-500/20 text-purple-400 border border-purple-500/30' },
+        'picked_up': { label: 'تم الاستلام 📦', class: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' },
+        'cancelled': { label: 'ملغى ❌', class: 'bg-red-500/20 text-red-400 border border-red-500/30' },
+      };
+
+      tbody.innerHTML = orders.map(o => {
+        const statusMeta = statusMap[o.status] || { label: o.status, class: 'bg-slate-700 text-slate-300' };
+        const price = parseFloat(o.total_price) || 0;
+        const discount = parseFloat(o.discount_amount) || 0;
+        const promoBadge = o.promo_code 
+          ? `<span class="px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">🎟️ ${o.promo_code} (-${discount.toFixed(0)} دج)</span>`
+          : (discount > 0 
+              ? `<span class="px-2 py-0.5 rounded text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">-${discount.toFixed(0)} دج</span>` 
+              : `<span class="text-slate-500 text-xs">-</span>`);
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-mono text-amber-400 text-xs font-bold whitespace-nowrap">#${o.id.slice(0, 8)}</td>
+            <td class="p-3">
+              <div class="font-semibold text-slate-100">${o.client_name || 'عميل'}</div>
+              ${o.client_phone ? `<div class="text-[11px] text-slate-400 font-mono">${o.client_phone}</div>` : ''}
+            </td>
+            <td class="p-3">
+              ${o.driver_name 
+                ? `<div><div class="font-semibold text-slate-200">${o.driver_name}</div>${o.driver_phone ? `<div class="text-[11px] text-slate-400 font-mono">${o.driver_phone}</div>` : ''}</div>` 
+                : `<span class="text-slate-500 text-xs italic">لم يقبل بعد</span>`}
+            </td>
+            <td class="p-3 text-xs text-slate-300 max-w-xs" title="${o.pickup_address} ➡️ ${o.dropoff_address}">
+              <div class="truncate"><span class="text-slate-400">${o.pickup_address}</span> <span class="text-amber-400">➡️</span> <span class="text-slate-200">${o.dropoff_address}</span></div>
+            </td>
+            <td class="p-3 whitespace-nowrap">
+              <div class="font-bold text-emerald-400 font-mono text-sm">${price.toFixed(2)} DZD</div>
+            </td>
+            <td class="p-3 whitespace-nowrap">${promoBadge}</td>
+            <td class="p-3 whitespace-nowrap">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.class}">${statusMeta.label}</span>
+            </td>
+            <td class="p-3 text-xs text-slate-400 whitespace-nowrap">
+              ${new Date(o.created_at).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })}<br>
+              <span class="text-[10px] text-slate-500">${new Date(o.created_at).toLocaleDateString('ar-DZ')}</span>
+            </td>
+            <td class="p-3 text-center whitespace-nowrap">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="openEditOrderPriceModal('${o.id}', ${price})" title="تعديل السعر (Modifier prix)" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>✏️</span> تعديل السعر
+                </button>
+                <button onclick="openApplyOrderPromoModal('${o.id}', ${price})" title="تطبيق كود خصم (Appliquer Promo)" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>🏷️</span> برومو
+                </button>
+                <button onclick="deleteOrder('${o.id}')" title="حذف الطلب نهائياً (Supprimer)" class="px-2.5 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>🗑️</span> حذف
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // بحث وتصفية جدول الطلبات
+    function filterOrdersTable() {
+      const query = (document.getElementById('search-orders')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-orders-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', query.length === 0);
+      }
+
+      if (!query) {
+        displayOrdersRows(allOrders);
+        return;
+      }
+
+      const filtered = allOrders.filter(o => {
+        const idMatch = (o.id || '').toLowerCase().includes(query);
+        const clientMatch = (o.client_name || '').toLowerCase().includes(query) || (o.client_phone || '').includes(query);
+        const driverMatch = (o.driver_name || '').toLowerCase().includes(query) || (o.driver_phone || '').includes(query);
+        const addressMatch = (o.pickup_address || '').toLowerCase().includes(query) || (o.dropoff_address || '').toLowerCase().includes(query);
+        const promoMatch = (o.promo_code || '').toLowerCase().includes(query);
+        return idMatch || clientMatch || driverMatch || addressMatch || promoMatch;
+      });
+
+      displayOrdersRows(filtered);
+    }
+
+    function clearOrdersSearch() {
+      const input = document.getElementById('search-orders');
+      if (input) input.value = '';
+      filterOrdersTable();
+    }
+
+    // Modal تعديل السعر
+    function openEditOrderPriceModal(orderId, currentPrice) {
+      document.getElementById('edit-order-id').value = orderId;
+      document.getElementById('edit-order-id-display').innerText = '#' + orderId.slice(0, 8);
+      document.getElementById('edit-order-current-price-display').innerText = parseFloat(currentPrice).toFixed(2) + ' DZD';
+      document.getElementById('edit-order-new-price').value = currentPrice;
+      document.getElementById('modal-edit-order-price').classList.remove('hidden');
+    }
+    function closeEditOrderPriceModal() {
+      document.getElementById('modal-edit-order-price').classList.add('hidden');
+    }
+
+    async function submitEditOrderPrice(e) {
+      e.preventDefault();
+      const orderId = document.getElementById('edit-order-id').value;
+      const newPrice = parseFloat(document.getElementById('edit-order-new-price').value);
+      if (isNaN(newPrice) || newPrice < 0) {
+        showAppAlert('يرجى إدخال مبلغ صحيح وموجب', 'قيمة غير صالحة', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-order-price');
+      btn.disabled = true;
+      btn.innerText = 'جاري التعديل...';
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}/price`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ price: newPrice })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشل تعديل السعر', 'خطأ', 'error');
+        } else {
+          showAppAlert(res.message || `تم تعديل سعر الطلب إلى ${newPrice} DZD بنجاح ✅`, 'تم بنجاح', 'success');
+          closeEditOrderPriceModal();
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>💾</span> حفظ وتعديل السعر';
+      }
+    }
+
+    // Modal تطبيق كود الخصم
+    function openApplyOrderPromoModal(orderId, currentPrice) {
+      document.getElementById('promo-order-id').value = orderId;
+      document.getElementById('promo-order-id-display').innerText = '#' + orderId.slice(0, 8);
+      document.getElementById('promo-order-current-price-display').innerText = parseFloat(currentPrice).toFixed(2) + ' DZD';
+      document.getElementById('promo-order-code').value = '';
+      document.getElementById('promo-order-discount').value = '';
+      document.getElementById('modal-apply-order-promo').classList.remove('hidden');
+    }
+    function closeApplyOrderPromoModal() {
+      document.getElementById('modal-apply-order-promo').classList.add('hidden');
+    }
+
+    async function submitApplyOrderPromo(e) {
+      e.preventDefault();
+      const orderId = document.getElementById('promo-order-id').value;
+      const promoCode = document.getElementById('promo-order-code').value.trim();
+      const discountVal = parseFloat(document.getElementById('promo-order-discount').value);
+
+      if (!promoCode && (isNaN(discountVal) || discountVal <= 0)) {
+        showAppAlert('يرجى إدخال كود خصم أو قيمة التخفيض بالدينار', 'بيانات ناقصة', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-order-promo');
+      btn.disabled = true;
+      btn.innerText = 'جاري التطبيق...';
+
+      const payload = {};
+      if (promoCode) payload.promo_code = promoCode;
+      if (!isNaN(discountVal) && discountVal > 0) payload.discount_amount = discountVal;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}/promo`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشل تطبيق الخصم', 'خطأ', 'error');
+        } else {
+          showAppAlert(res.message || 'تم تطبيق الخصم على الطلب بنجاح 🏷️', 'تم تطبيق الخصم', 'success');
+          closeApplyOrderPromoModal();
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🏷️</span> تطبيق الخصم';
+      }
+    }
+
+    // حذف طلب نهائياً (Supprimer commande)
+    async function deleteOrder(orderId) {
+      const ok = await showAppConfirm({
+        title: 'حذف الطلب نهائياً 🗑️',
+        message: `هل أنت متأكد من حذف الطلب #${orderId.slice(0, 8)} نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذه العملية.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الطلب',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشلت عملية حذف الطلب', 'خطأ أثناء الحذف', 'error');
+        } else {
+          showAppAlert(res.message || `تم حذف الطلب #${orderId.slice(0, 8)} بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      }
+    }
+
+    // جدول الزبائن والعملاء (Les Clients - Ajouter, Bloquer, Supprimer, Recherche)
+    function renderClientsTable(clients) {
+      allClients = clients || [];
+      const query = (document.getElementById('search-clients')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterClientsTable();
+      } else {
+        displayClientsRows(allClients);
+      }
+    }
+
+    function filterClientsTable() {
+      const query = (document.getElementById('search-clients')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-clients-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !query);
+      }
+
+      if (!query) {
+        displayClientsRows(allClients);
+        return;
+      }
+
+      const filtered = allClients.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        return name.includes(query) || phone.includes(query) || email.includes(query);
+      });
+
+      displayClientsRows(filtered);
+    }
+
+    function clearClientsSearch() {
+      const input = document.getElementById('search-clients');
+      if (input) input.value = '';
+      filterClientsTable();
+    }
+
+    function displayClientsRows(clients) {
+      const tbody = document.getElementById('clients-table-body');
+      if (!tbody) return;
+      if (!clients || clients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-500">لا يوجد أي زبائن مطابقة للبحث 🔍</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = clients.map(c => {
+        const totalSpent = (parseFloat(c.total_spent) || 0).toLocaleString();
+        const activeBadge = c.is_active
+          ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">نشط ✅</span>`
+          : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">محظور 🚫</span>`;
+
+        const blockBtn = c.is_active
+          ? `<button onclick="toggleBlockUser('${c.user_id}', false)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">
+               حظر 🚫
+             </button>`
+          : `<button onclick="toggleBlockUser('${c.user_id}', true)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">
+               رفع الحظر 🔓
+             </button>`;
+
+        const deleteClientBtn = `
+          <button onclick="deleteClient('${c.user_id}', '${(c.name || '').replace(/'/g, "\\'")}')" title="حذف الزبون نهائياً من المنصة" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1">
+            <span>🗑️</span> حذف
+          </button>
+        `;
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-semibold text-slate-100">${c.name}</td>
+            <td class="p-3 text-slate-300 font-mono text-xs">${c.phone}</td>
+            <td class="p-3 text-slate-400 text-xs">${c.email || '<span class="text-slate-600">-</span>'}</td>
+            <td class="p-3 text-xs text-slate-400">${new Date(c.created_at).toLocaleDateString('ar-DZ')}</td>
+            <td class="p-3 font-mono font-bold text-amber-400">${c.total_orders || 0} طلب</td>
+            <td class="p-3 font-bold text-emerald-400">${totalSpent} DZD</td>
+            <td class="p-3">${activeBadge}</td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                ${blockBtn}
+                ${deleteClientBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // حذف زبون نهائياً (Supprimer Client)
+    async function deleteClient(clientId, clientName) {
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف الزبون',
+        message: `هل أنت متأكد من حذف الزبون "${clientName}" نهائياً من المنصة؟\n\n- سيتم حذف حسابه وسجل طلباته نهائياً من النظام.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الزبون',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/clients/${clientId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ أثناء الحذف', 'error');
+        } else {
+          showAppAlert(`تم حذف الزبون "${clientName}" بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ اتصال', 'error');
+      }
+    }
+
+    // Modal إضافة زبون
+    function openAddClientModal() {
+      document.getElementById('modal-add-client').classList.remove('hidden');
+    }
+    function closeAddClientModal() {
+      document.getElementById('modal-add-client').classList.add('hidden');
+    }
+
+    // إرسال طلب إضافة زبون (Ajouter Client)
+    async function submitAddClient(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btn-submit-client');
+      btn.disabled = true;
+      btn.innerText = 'جاري الإضافة...';
+
+      const payload = {
+        name: document.getElementById('new-client-name').value.trim(),
+        phone: document.getElementById('new-client-phone').value.trim(),
+        password: document.getElementById('new-client-pass').value.trim() || '123456',
+        email: document.getElementById('new-client-email').value.trim() || undefined,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/clients`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت إضافة الزبون'));
+        } else {
+          alert('🎉 تم إضافة الزبون بنجاح!');
+          closeAddClientModal();
+          document.getElementById('form-add-client').reset();
+          loadDashboard();
+        }
+      } catch (err) {
+        alert('حدث خطأ في الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'حفظ وإضافة الزبون ✅';
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // إعدادات المنصة والتسعيرة (Platform Settings & Pricing)
+    // -----------------------------------------------------------------
+    function populateSettingsForm(settings) {
+      if (!settings) return;
+      if (document.getElementById('setting-base-fee')) {
+        document.getElementById('setting-base-fee').value = parseFloat(settings.base_fee) || 200;
+      }
+      if (document.getElementById('setting-per-km-rate')) {
+        document.getElementById('setting-per-km-rate').value = parseFloat(settings.per_km_rate) || 50;
+      }
+      if (document.getElementById('setting-min-price')) {
+        document.getElementById('setting-min-price').value = parseFloat(settings.min_order_price) || 250;
+      }
+      if (document.getElementById('setting-commission-rate')) {
+        document.getElementById('setting-commission-rate').value = parseFloat(settings.commission_rate) || 15;
+      }
+      if (document.getElementById('setting-debt-limit')) {
+        document.getElementById('setting-debt-limit').value = parseFloat(settings.default_debt_limit) || 3000;
+      }
+      if (document.getElementById('setting-surge-multiplier')) {
+        document.getElementById('setting-surge-multiplier').value = parseFloat(settings.surge_multiplier) || 1.0;
+      }
+    }
+
+    async function submitUpdateSettings() {
+      const btn = document.getElementById('btn-save-settings');
+      const statusLabel = document.getElementById('settings-save-status');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> جاري الحفظ...';
+
+      const payload = {
+        base_fee: parseFloat(document.getElementById('setting-base-fee').value) || 200,
+        per_km_rate: parseFloat(document.getElementById('setting-per-km-rate').value) || 50,
+        min_order_price: parseFloat(document.getElementById('setting-min-price').value) || 250,
+        commission_rate: parseFloat(document.getElementById('setting-commission-rate').value) || 15,
+        default_debt_limit: parseFloat(document.getElementById('setting-debt-limit').value) || 3000,
+        surge_multiplier: parseFloat(document.getElementById('setting-surge-multiplier').value) || 1.0,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشل تحديث الإعدادات'));
+        } else {
+          statusLabel.classList.remove('hidden');
+          setTimeout(() => statusLabel.classList.add('hidden'), 3500);
+          loadDashboard();
+        }
+      } catch (err) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>💾</span> حفظ وتحديث الأسعار';
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // أكواد الخصم والعروض الترويجية (Promo Codes)
+    // -----------------------------------------------------------------
+    function renderPromosTable(promos) {
+      const tbody = document.getElementById('promos-table-body');
+      if (!tbody) return;
+      if (promos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-500">لا يوجد أي كود خصم مضاف حالياً. اضغط "إنشاء كود خصم جديد" لإضافة أول كود.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = promos.map(p => {
+        const discountText = p.discount_type === 'percentage'
+          ? `<span class="text-emerald-400 font-bold">${parseFloat(p.discount_value)}% خصم</span>`
+          : `<span class="text-emerald-400 font-bold">${parseFloat(p.discount_value)} DZD خصم مباشر</span>`;
+
+        const maxDiscountText = p.max_discount
+          ? `${parseFloat(p.max_discount)} DZD`
+          : `<span class="text-slate-500">غير محدد</span>`;
+
+        const minOrderText = parseFloat(p.min_order_price) > 0
+          ? `${parseFloat(p.min_order_price)} DZD`
+          : `<span class="text-slate-500">بدون شرط</span>`;
+
+        const expiresText = p.expires_at
+          ? new Date(p.expires_at).toLocaleDateString('ar-DZ')
+          : `<span class="text-blue-400">دائم ♾️</span>`;
+
+        const statusBadge = p.is_active
+          ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">نشط 🟢</span>`
+          : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-slate-700/50 text-slate-400 border border-slate-700">معطل ⚪</span>`;
+
+        const toggleBtn = p.is_active
+          ? `<button onclick="togglePromoStatus('${p.id}', false)" title="تعطيل الكود مؤقتاً" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition">تعطيل ⏸️</button>`
+          : `<button onclick="togglePromoStatus('${p.id}', true)" title="إعادة تفعيل الكود" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">تفعيل ▶️</button>`;
+
+        const deleteBtn = `<button onclick="deletePromo('${p.id}', '${p.code}')" title="حذف نهائي" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">حذف 🗑️</button>`;
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3">
+              <span class="font-mono font-black text-sm text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30 tracking-wider">
+                ${p.code}
+              </span>
+            </td>
+            <td class="p-3 text-xs">${discountText}</td>
+            <td class="p-3 text-xs text-slate-300">${maxDiscountText}</td>
+            <td class="p-3 text-xs text-slate-300">${minOrderText}</td>
+            <td class="p-3 text-xs font-mono font-bold text-slate-200">
+              ${p.used_count || 0} / <span class="text-slate-400">${p.usage_limit || '∞'}</span>
+            </td>
+            <td class="p-3 text-xs font-mono">${expiresText}</td>
+            <td class="p-3">${statusBadge}</td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                ${toggleBtn}
+                ${deleteBtn}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openAddPromoModal() {
+      document.getElementById('modal-add-promo').classList.remove('hidden');
+    }
+    function closeAddPromoModal() {
+      document.getElementById('modal-add-promo').classList.add('hidden');
+    }
+
+    async function submitAddPromo(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btn-submit-promo');
+      btn.disabled = true;
+      btn.innerText = 'جاري الحفظ...';
+
+      const payload = {
+        code: document.getElementById('new-promo-code').value.trim().toUpperCase(),
+        discount_type: document.getElementById('new-promo-type').value,
+        discount_value: parseFloat(document.getElementById('new-promo-value').value),
+        max_discount: parseFloat(document.getElementById('new-promo-max').value) || undefined,
+        min_order_price: parseFloat(document.getElementById('new-promo-min-order').value) || 0,
+        usage_limit: parseInt(document.getElementById('new-promo-limit').value) || 100,
+        expires_at: document.getElementById('new-promo-expires').value ? new Date(document.getElementById('new-promo-expires').value).toISOString() : undefined,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/promos`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشل إنشاء كود الخصم'));
+        } else {
+          alert('🎉 تم إنشاء كود الخصم بنجاح!');
+          closeAddPromoModal();
+          document.getElementById('form-add-promo').reset();
+          loadDashboard();
+        }
+      } catch (err) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'إنشاء وحفظ الكود ✅';
+      }
+    }
+
+    async function togglePromoStatus(id, isActive) {
+      try {
+        const res = await fetch(`${API_BASE}/admin/promos/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_active: isActive })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت العملية'));
+        } else {
+          loadDashboard();
+        }
+      } catch (e) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      }
+    }
+
+    async function deletePromo(id, code) {
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف كود الخصم',
+        message: `هل أنت متأكد من حذف كود الخصم "${code}" نهائياً؟`,
+        icon: '🏷️',
+        confirmText: 'نعم، حذف الكود',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/promos/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          showAppAlert(res.message || 'فشل حذف الكود', 'خطأ', 'error');
+        } else {
+          showAppAlert('🗑️ تم حذف كود الخصم بنجاح', 'تم الحذف', 'success');
+          loadDashboard();
+        }
+      } catch (e) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // إدارة فريق العمل والوكلاء (Agents & Staff Management)
+    // -----------------------------------------------------------------
+    function renderAgentsTable(agents) {
+      const tbody = document.getElementById('agents-table-body');
+      if (!tbody) return;
+      if (agents.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-500">لا يوجد أي وكيل مضاف حالياً.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = agents.map(a => {
+        const isSelf = currentUser && (a.id === currentUser.id);
+        const isSuperAdmin = currentUser && (currentUser.role === 'admin');
+
+        const roleBadge = a.role === 'admin'
+          ? `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">👑 مدير عام (Admin)</span>`
+          : `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40">🎧 وكيل دعم (Agent)</span>`;
+
+        const activeBadge = a.is_active
+          ? `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">نشط 🟢</span>`
+          : `<span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-500/20 text-red-400 border border-red-500/30">معطل 🚫</span>`;
+
+        let actionBtns = '';
+        if (isSelf) {
+          actionBtns = `<span class="text-xs text-slate-500 font-semibold italic">حسابك الحالي (Connecté)</span>`;
+        } else if (isSuperAdmin) {
+          const resetBtn = `<button onclick="openResetAgentPasswordModal('${a.id}', '${a.name.replace(/'/g, "\\'")}')" title="تغيير كلمة المرور" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 transition">🔑 كلمة السر</button>`;
+
+          const toggleBtn = a.is_active
+            ? `<button onclick="toggleAgentStatus('${a.id}', false)" title="تعطيل الحساب" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition">تعطيل ⏸️</button>`
+            : `<button onclick="toggleAgentStatus('${a.id}', true)" title="تفعيل الحساب" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">تفعيل ▶️</button>`;
+
+          const deleteBtn = `<button onclick="deleteAgent('${a.id}', '${a.name.replace(/'/g, "\\'")}')" title="حذف الحساب نهائياً" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">حذف 🗑️</button>`;
+
+          actionBtns = `
+            <div class="flex items-center justify-center gap-1.5 flex-wrap">
+              ${resetBtn}
+              ${toggleBtn}
+              ${deleteBtn}
+            </div>
+          `;
+        } else {
+          actionBtns = `<span class="text-xs text-slate-500">للمدير فقط 🔒</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg ${a.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'} flex items-center justify-center font-bold text-sm">
+                  ${a.role === 'admin' ? '👑' : '🎧'}
+                </div>
+                <div>
+                  <div class="font-bold text-slate-100">${a.name}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">${a.id.slice(0, 8)}...</div>
+                </div>
+              </div>
+            </td>
+            <td class="p-3 font-mono text-slate-300 text-xs">${a.phone}</td>
+            <td class="p-3 text-slate-400 text-xs">${a.email || '<span class="text-slate-600">-</span>'}</td>
+            <td class="p-3">${roleBadge}</td>
+            <td class="p-3">${activeBadge}</td>
+            <td class="p-3 text-xs text-slate-400 font-mono">${new Date(a.created_at).toLocaleDateString('ar-DZ')}</td>
+            <td class="p-3 text-center">${actionBtns}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openAddAgentModal() {
+      document.getElementById('modal-add-agent').classList.remove('hidden');
+    }
+    function closeAddAgentModal() {
+      document.getElementById('modal-add-agent').classList.add('hidden');
+    }
+
+    // بطاقة تسليم بيانات الدخول
+    let activeAgentCreds = null;
+    function openAgentCredentialsModal({ name, phone, password, role }) {
+      activeAgentCreds = { name, phone, password, role };
+      document.getElementById('cred-agent-name').innerText = name;
+      document.getElementById('cred-agent-phone').innerText = phone;
+      document.getElementById('cred-agent-pass').innerText = password;
+      document.getElementById('cred-agent-role').innerText = role;
+      document.getElementById('btn-copy-creds').innerHTML = '<span>📋</span> نسخ معلومات الدخول';
+      document.getElementById('modal-agent-credentials').classList.remove('hidden');
+    }
+
+    function closeAgentCredentialsModal() {
+      document.getElementById('modal-agent-credentials').classList.add('hidden');
+      activeAgentCreds = null;
+    }
+
+    async function copyAgentCredentials() {
+      if (!activeAgentCreds) return;
+      const origin = window.location.origin || 'http://localhost:3000';
+      const textToCopy = `🚀 معلومات الدخول إلى لوحة التحكم الإدارية (MMO Express):
+👤 الاسم: ${activeAgentCreds.name}
+📱 رقم الدخول (Login): ${activeAgentCreds.phone}
+🔑 كلمة المرور (Mot de passe): ${activeAgentCreds.password}
+🎖️ الصلاحية: ${activeAgentCreds.role}
+🌐 رابط لوحة التحكم: ${origin}`;
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(textToCopy);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = textToCopy;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        const btn = document.getElementById('btn-copy-creds');
+        btn.innerHTML = '<span>✅</span> تم النسخ إلى الحافظة!';
+        setTimeout(() => {
+          btn.innerHTML = '<span>📋</span> نسخ معلومات الدخول';
+        }, 2500);
+      } catch (err) {
+        alert('تعذر النسخ التلقائي، يمكنك نسخ النص يدوياً');
+      }
+    }
+
+    // إعادة تعيين كلمة المرور
+    function openResetAgentPasswordModal(id, name) {
+      document.getElementById('reset-agent-id').value = id;
+      document.getElementById('reset-agent-name').innerText = name;
+      document.getElementById('reset-agent-new-pass').value = '';
+      document.getElementById('modal-reset-agent-pass').classList.remove('hidden');
+    }
+
+    function closeResetAgentPasswordModal() {
+      document.getElementById('modal-reset-agent-pass').classList.add('hidden');
+    }
+
+    async function submitResetAgentPassword(event) {
+      event.preventDefault();
+      const id = document.getElementById('reset-agent-id').value;
+      const newPassword = document.getElementById('reset-agent-new-pass').value.trim();
+      const btn = document.getElementById('btn-submit-reset-pass');
+      btn.disabled = true;
+      btn.innerText = 'جاري التحديث...';
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/agents/${id}/password`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password: newPassword })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشل تحديث كلمة المرور'));
+        } else {
+          alert('✅ تم تغيير كلمة المرور بنجاح!');
+          closeResetAgentPasswordModal();
+          loadDashboard();
+        }
+      } catch (e) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'حفظ كلمة المرور الجديدة 💾';
+      }
+    }
+
+    async function submitAddAgent(event) {
+      event.preventDefault();
+      const btn = document.getElementById('btn-submit-agent');
+      btn.disabled = true;
+      btn.innerText = 'جاري الإضافة...';
+
+      const payload = {
+        name: document.getElementById('new-agent-name').value.trim(),
+        phone: document.getElementById('new-agent-phone').value.trim(),
+        password: document.getElementById('new-agent-pass').value.trim() || 'Agent123!',
+        email: document.getElementById('new-agent-email').value.trim() || undefined,
+        role: document.getElementById('new-agent-role').value,
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/agents`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت إضافة الوكيل'));
+        } else {
+          closeAddAgentModal();
+          document.getElementById('form-add-agent').reset();
+          loadDashboard();
+          openAgentCredentialsModal({
+            name: payload.name,
+            phone: payload.phone,
+            password: payload.password,
+            role: payload.role === 'admin' ? 'مدير عام (Admin)' : 'وكيل دعم وعمليات (Agent)'
+          });
+        }
+      } catch (err) {
+        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'حفظ وإضافة الوكيل ✅';
+      }
+    }
+
+    async function toggleAgentStatus(id, isActive) {
+      const actionText = isActive ? 'تفعيل وتنشيط' : 'تعطيل وتجميد';
+      const ok = await showAppConfirm({
+        title: `${actionText} الحساب`,
+        message: `هل أنت متأكد من ${actionText} حساب هذا الوكيل؟`,
+        icon: isActive ? '🔓' : '⏸️',
+        confirmText: `نعم، ${actionText}`,
+        cancelText: 'إلغاء',
+        type: isActive ? 'warning' : 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/agents/${id}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_active: isActive })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ', 'error');
+        } else {
+          showAppAlert(isActive ? '🔓 تم تفعيل الحساب بنجاح' : '⏸️ تم تعطيل الحساب', 'حالة الحساب', 'success');
+          loadDashboard();
+        }
+      } catch (e) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
+      }
+    }
+
+    async function deleteAgent(id, name) {
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف الوكيل',
+        message: `هل أنت متأكد من حذف حساب "${name}" نهائياً من فريق العمل؟`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الحساب',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/agents/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400) {
+          showAppAlert(res.message || 'فشل حذف الحساب', 'خطأ', 'error');
+        } else {
+          showAppAlert('🗑️ تم حذف حساب الوكيل بنجاح', 'تم الحذف', 'success');
+          loadDashboard();
+        }
+      } catch (e) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
+      }
+    }
+
+    // 🔔 نظام التنبيهات الصوتية الحية (Web Audio API Chime)
+    let soundEnabled = true;
+
+    function toggleAudioNotifications() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      if (icon) icon.innerText = soundEnabled ? '🔔' : '🔕';
+      if (soundEnabled) playNotificationChime('test');
+    }
+
+    function playNotificationChime(type = 'new_order') {
+      if (!soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(type === 'test' ? 440 : 587.33, now); // D5
+        osc1.frequency.exponentialRampToValueAtTime(type === 'test' ? 880 : 880, now + 0.15); // A5
+        gain1.gain.setValueAtTime(0.25, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.45);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(type === 'test' ? 660 : 783.99, now + 0.1); // G5
+        osc2.frequency.exponentialRampToValueAtTime(type === 'test' ? 1174 : 1174.66, now + 0.3); // D6
+        gain2.gain.setValueAtTime(0.25, now + 0.1);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.1);
+        osc2.stop(now + 0.6);
+      } catch (e) {}
+    }
+
+    // تبديل التبويبات
+    function switchTab(tab) {
+      ['drivers', 'clients', 'kyc', 'orders', 'settings', 'agents', 'finances'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (el) el.classList.add('hidden');
+        if (btn) btn.className = 'px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap';
+      });
+
+      const activeEl = document.getElementById(`tab-${tab}`);
+      const activeBtn = document.getElementById(`tab-btn-${tab}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+      if (activeBtn) activeBtn.className = 'px-6 py-4 font-semibold text-sm border-b-2 border-amber-400 text-amber-400 transition whitespace-nowrap';
+
+      if (tab === 'finances') loadFinances();
+
+      // تمرير سلس نحو الجدول إذا تم النقر من إحدى بطاقات الإحصائيات
+      activeEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // 💼 جلب البيانات المالية والمحافظ
+    async function loadFinances() {
+      if (!adminToken) return;
+      try {
+        const [finRes, driversRes] = await Promise.all([
+          fetch(`${API_BASE}/admin/finances`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).then(r => r.json()).catch(() => ({})),
+          fetch(`${API_BASE}/admin/drivers`, {
+            headers: { 'Authorization': `Bearer ${adminToken}` }
+          }).then(r => r.json()).catch(() => ({ data: [] }))
+        ]);
+
+        if (finRes.data) {
+          const f = finRes.data;
+          document.getElementById('fin-total-commissions').innerText = `${parseFloat(f.total_commissions_earned || 0).toLocaleString()} دج`;
+          document.getElementById('fin-total-balances').innerText = `${parseFloat(f.total_positive_balances || 0).toLocaleString()} دج`;
+          document.getElementById('fin-total-debts').innerText = `${parseFloat(f.total_driver_debts || 0).toLocaleString()} دج`;
+
+          // سجل المعاملات
+          const txTbody = document.getElementById('finances-transactions-table-body');
+          if (txTbody) {
+            if (!f.recent_transactions || f.recent_transactions.length === 0) {
+              txTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-500">لا توجد معاملات مسجلة بعد</td></tr>';
+            } else {
+              txTbody.innerHTML = f.recent_transactions.map(t => {
+                const isDeposit = parseFloat(t.amount) > 0;
+                const typeLabel = isDeposit ? '🟢 شحن / إيداع' : '🔴 خصم عمولة';
+                const dateStr = new Date(t.created_at).toLocaleString('ar-DZ', { dateStyle: 'short', timeStyle: 'short' });
+                return `
+                  <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-4 py-3 font-semibold">${typeLabel}</td>
+                    <td class="px-4 py-3">${t.user_name || '—'} <span class="text-slate-400 font-mono text-[11px]">(${t.user_phone || ''})</span></td>
+                    <td class="px-4 py-3 font-mono font-bold ${isDeposit ? 'text-emerald-400' : 'text-rose-400'}">${isDeposit ? '+' : ''}${parseFloat(t.amount).toLocaleString()} دج</td>
+                    <td class="px-4 py-3 font-mono text-slate-300">${parseFloat(t.balance_after || 0).toLocaleString()} دج</td>
+                    <td class="px-4 py-3 text-slate-300">${t.description || '—'}</td>
+                    <td class="px-4 py-3 text-slate-400 font-mono text-[11px]">${dateStr}</td>
+                  </tr>
+                `;
+              }).join('');
+            }
+          }
+        }
+
+        // جدول محافظ السائقين
+        const drivers = driversRes.data || [];
+        const drTbody = document.getElementById('finances-drivers-table-body');
+        if (drTbody) {
+          if (drivers.length === 0) {
+            drTbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-slate-500">لا يوجد سائقون مسجلون بعد</td></tr>';
+          } else {
+            drTbody.innerHTML = drivers.map(d => {
+              const bal = parseFloat(d.wallet_balance || 0);
+              const debtLimit = parseFloat(d.debt_limit || 3000);
+              const isNegative = bal < 0;
+              const isExceeded = isNegative && (-bal > debtLimit);
+              const statusPill = isExceeded
+                ? '<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold">🚫 تجاوز سقف الدين</span>'
+                : (isNegative
+                  ? '<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold">⚠️ عليه دين</span>'
+                  : '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">✅ رصيد إيجابي</span>');
+
+              return `
+                <tr class="hover:bg-slate-800/40 transition">
+                  <td class="px-4 py-3 font-bold text-slate-100">${d.name} <span class="text-[11px] text-slate-400 font-normal">(${d.vehicle_plate})</span></td>
+                  <td class="px-4 py-3 font-mono text-slate-300">${d.phone}</td>
+                  <td class="px-4 py-3 font-mono font-bold ${isNegative ? 'text-rose-400' : 'text-emerald-400'}">${bal.toLocaleString()} دج</td>
+                  <td class="px-4 py-3 font-mono text-slate-400">${debtLimit.toLocaleString()} دج</td>
+                  <td class="px-4 py-3">${statusPill}</td>
+                  <td class="px-4 py-3 text-center">
+                    <button onclick="openRechargeModal('${d.driver_id}', '${d.name}', '${bal}')" class="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-lg font-bold text-xs transition inline-flex items-center gap-1">
+                      <span>💵</span> شحن / تسديد
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch (err) {}
+    }
+
+    // Modal الشحن المالي
+    function openRechargeModal(driverId, name, balance) {
+      document.getElementById('recharge-driver-id').value = driverId;
+      document.getElementById('recharge-driver-name').innerText = name;
+      document.getElementById('recharge-driver-curr-balance').innerText = `${parseFloat(balance).toLocaleString()} دج`;
+      document.getElementById('recharge-amount').value = '';
+      document.getElementById('modal-recharge-wallet').classList.remove('hidden');
+    }
+
+    function closeRechargeModal() {
+      document.getElementById('modal-recharge-wallet').classList.add('hidden');
+    }
+
+    function setRechargeAmount(amt) {
+      document.getElementById('recharge-amount').value = amt;
+    }
+
+    async function submitRechargeWallet(event) {
+      event.preventDefault();
+      const driverId = document.getElementById('recharge-driver-id').value;
+      const amount = parseFloat(document.getElementById('recharge-amount').value);
+      const reference = document.getElementById('recharge-reference').value;
+      const btn = document.getElementById('btn-submit-recharge');
+
+      btn.disabled = true;
+      btn.innerText = 'جاري الشحن والتسجيل...';
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers/${driverId}/wallet/top-up`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ amount, reference })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ: ' + (res.message || 'فشلت عملية الشحن'));
+        } else {
+          alert('✅ تم شحن رصيد السائق بنجاح وتحديث المحفظة');
+          closeRechargeModal();
+          loadFinances();
+          loadDrivers();
+        }
+      } catch (e) {
+        alert('❌ حدث خطأ في الاتصال بالخادم');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>✅</span> تأكيد الشحن الفوري';
+      }
+    }
+
+    function loadDrivers() {
+      loadDashboard();
+    }
+
+    function loadClients() {
+      loadDashboard();
+    }
+
+    function connectSocket() {
+      try {
+        const socket = io(`${API_HOST}/tracking`);
+        socket.on('connect', () => {
+          const badge = document.getElementById('socket-badge');
+          if (badge) badge.innerText = 'سيرفر متصل 🟢';
+        });
+        socket.on('new_order_available', () => {
+          playNotificationChime('new_order');
+          if (adminToken) loadDashboard();
+        });
+        socket.on('order_status_changed', () => {
+          playNotificationChime('status_change');
+          if (adminToken) loadDashboard();
+        });
+      } catch (e) {}
+    }
+
+    window.onload = () => {
+      checkAuthOnStartup();
+      setInterval(() => {
+        if (adminToken && currentUser) loadDashboard();
+      }, 10000); // تحديث دوري كل 10 ثوانٍ
+    };
+  </script>
+</body>
+</html>
