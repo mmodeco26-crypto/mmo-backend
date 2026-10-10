@@ -3158,7 +3158,7 @@ function SimulatorView({
     className: "text-slate-100"
   }, currentSimDriver.name), " (", currentSimDriver.vehicle_model, ")"), simActiveOrder.status === 'pending' && /*#__PURE__*/React.createElement("div", {
     className: "text-[10px] text-amber-300/90 font-mono bg-amber-500/10 p-2 rounded-xl border border-amber-500/20"
-  }, "📡 تم إرسال الطلب، انظر لوحة السائق على اليسار للقبول ⬅️"), /*#__PURE__*/React.createElement("div", {
+  }, "📡 تم إرسال الطلب، انظر لوحة السائق على اليسار للقبول ⬅️")), /*#__PURE__*/React.createElement("div", {
     className: "pt-2 border-t border-slate-800"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[11px] font-bold text-slate-400 block mb-2"
@@ -3399,7 +3399,7 @@ function SimulatorView({
     className: "p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-amber-400 ml-1"
-  }, "[", log.time, "]"), " ", log.text))))))));
+  }, "[", log.time, "]"), " ", log.text)))))));
 }
 
 // =========================================================================
