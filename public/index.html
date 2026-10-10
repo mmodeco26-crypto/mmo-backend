@@ -1118,6 +1118,67 @@
       </form>
     </div>
   </div>
+
+  <!-- نافذة التنبيه والإشعارات التكتيكية الفخمة (Custom Alert & Notification Modal) -->
+  <div id="modal-app-alert" onclick="if(event.target === this) closeAppAlert()" class="fixed inset-0 bg-[#0b0f19]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div class="glass-card rounded-3xl w-full max-w-sm p-6 border border-slate-700/80 shadow-2xl shadow-black/80 relative text-center overflow-hidden transform transition-all duration-300 scale-95" id="modal-app-alert-card">
+      <!-- Glow effect -->
+      <div id="app-alert-glow" class="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-25 pointer-events-none bg-emerald-500"></div>
+
+      <!-- Icon Badge -->
+      <div id="app-alert-icon-wrap" class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-slate-700/60 bg-slate-800/80">
+        <span id="app-alert-icon">✨</span>
+      </div>
+
+      <!-- Title -->
+      <h3 id="app-alert-title" class="text-base font-black text-slate-100 mb-2 leading-tight">
+        إشعار النظام
+      </h3>
+
+      <!-- Message -->
+      <p id="app-alert-message" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line mb-6 font-medium">
+        رسالة التنبيه...
+      </p>
+
+      <!-- Button -->
+      <button onclick="closeAppAlert()" id="app-alert-btn" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-2.5 rounded-xl shadow-lg shadow-amber-500/25 transition transform active:scale-95 text-xs flex items-center justify-center gap-2">
+        <span>موافق (D'accord)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- نافذة التأكيد التكتيكية للعمليات الحساسة كالحذف (Custom Confirm Dialog Modal) -->
+  <div id="modal-app-confirm" onclick="if(event.target === this) handleAppConfirmResult(false)" class="fixed inset-0 bg-[#0b0f19]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden transition-opacity duration-200">
+    <div class="glass-card rounded-3xl w-full max-w-sm p-6 border border-slate-700/80 shadow-2xl shadow-black/80 relative text-center overflow-hidden transform transition-all duration-300 scale-95" id="modal-app-confirm-card">
+      <!-- Glow effect -->
+      <div id="app-confirm-glow" class="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-25 pointer-events-none bg-rose-500"></div>
+
+      <!-- Icon Badge -->
+      <div id="app-confirm-icon-wrap" class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-rose-500/30 bg-rose-500/10 text-rose-400">
+        <span id="app-confirm-icon">⚠️</span>
+      </div>
+
+      <!-- Title -->
+      <h3 id="app-confirm-title" class="text-base font-black text-slate-100 mb-2 leading-tight">
+        تأكيد العملية
+      </h3>
+
+      <!-- Message -->
+      <p id="app-confirm-message" class="text-xs text-slate-300 leading-relaxed whitespace-pre-line mb-6 font-medium">
+        هل أنت متأكد من المتابعة؟
+      </p>
+
+      <!-- Buttons -->
+      <div class="flex items-center gap-3">
+        <button onclick="handleAppConfirmResult(false)" id="app-confirm-cancel-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl border border-slate-700 transition transform active:scale-95 text-xs">
+          إلغاء (Annuler)
+        </button>
+        <button onclick="handleAppConfirmResult(true)" id="app-confirm-ok-btn" class="flex-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black py-2.5 rounded-xl shadow-lg shadow-rose-600/30 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5">
+          <span>نعم، تأكيد</span>
+        </button>
+      </div>
+    </div>
+  </div>
   </main>
 </div>
 
@@ -1152,6 +1213,162 @@
     let currentMapStyle = 'dark';
     let allDrivers = [];
     let allClients = [];
+
+    // 🎨 نظام التنبيهات والتأكيدات الرسومية التكتيكية وسط الشاشة (Custom Tactical Dialog System)
+    let appAlertCallback = null;
+    let appConfirmResolver = null;
+
+    function showAppAlert(message, title = '', type = 'info', onClose = null) {
+      const modal = document.getElementById('modal-app-alert');
+      const card = document.getElementById('modal-app-alert-card');
+      const iconEl = document.getElementById('app-alert-icon');
+      const iconWrap = document.getElementById('app-alert-icon-wrap');
+      const titleEl = document.getElementById('app-alert-title');
+      const msgEl = document.getElementById('app-alert-message');
+      const glowEl = document.getElementById('app-alert-glow');
+      const btn = document.getElementById('app-alert-btn');
+
+      if (!modal || !card) return;
+
+      appAlertCallback = onClose;
+
+      let cleanMsg = String(message || '');
+      let autoTitle = title;
+      let icon = '🔔';
+      let glowClass = 'bg-sky-500';
+      let iconWrapClass = 'bg-sky-500/15 border-sky-500/30 text-sky-400';
+      let btnClass = 'bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 text-slate-950 font-black';
+
+      // استكشاف نوع التنبيه تلقائياً من الأيقونة أو النص
+      if (type === 'success' || cleanMsg.includes('✅') || cleanMsg.includes('🎉') || cleanMsg.includes('نجاح') || cleanMsg.includes('تم حذف') || cleanMsg.includes('🗑️') || cleanMsg.includes('تم شحن') || cleanMsg.includes('تم اعتماد')) {
+        autoTitle = title || (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف') ? 'تم الحذف بنجاح' : 'تمت العملية بنجاح');
+        icon = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? '🗑️' : (cleanMsg.includes('🎉') ? '🎉' : '✅');
+        glowClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-rose-500' : 'bg-emerald-500';
+        iconWrapClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400';
+        btnClass = (cleanMsg.includes('🗑️') || cleanMsg.includes('حذف')) ? 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 text-white font-bold' : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 text-slate-950 font-black';
+      } else if (type === 'error' || cleanMsg.includes('❌') || cleanMsg.includes('خطأ') || cleanMsg.includes('فشل')) {
+        autoTitle = title || 'تنبيه خطأ';
+        icon = '❌';
+        glowClass = 'bg-rose-600';
+        iconWrapClass = 'bg-rose-500/15 border-rose-500/30 text-rose-400';
+        btnClass = 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 text-white font-bold';
+      } else if (type === 'warning' || cleanMsg.includes('⚠️') || cleanMsg.includes('تحذير') || cleanMsg.includes('تجميد') || cleanMsg.includes('حظر')) {
+        autoTitle = title || 'تنبيه إداري';
+        icon = '⚠️';
+        glowClass = 'bg-amber-500';
+        iconWrapClass = 'bg-amber-500/15 border-amber-500/30 text-amber-400';
+        btnClass = 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black';
+      }
+
+      // إزالة الإيموجي في بداية ونهاية النص لمنع التكرار
+      cleanMsg = cleanMsg.replace(/^([🗑️❌✅🎉⚠️🔔]+)\s*/u, '').replace(/\s*([🗑️❌✅🎉⚠️🔔]+)$/u, '');
+
+      iconEl.innerText = icon;
+      glowEl.className = `absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none ${glowClass}`;
+      iconWrap.className = `w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border ${iconWrapClass}`;
+      titleEl.innerText = autoTitle || 'إشعار النظام';
+      msgEl.innerText = cleanMsg;
+      btn.className = `w-full py-2.5 rounded-xl shadow-lg transition transform active:scale-95 text-xs flex items-center justify-center gap-2 ${btnClass}`;
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        card.classList.remove('scale-95');
+        card.classList.add('scale-100');
+      }, 10);
+    }
+
+    function closeAppAlert() {
+      const modal = document.getElementById('modal-app-alert');
+      const card = document.getElementById('modal-app-alert-card');
+      if (!modal || !card) return;
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        if (typeof appAlertCallback === 'function') {
+          appAlertCallback();
+          appAlertCallback = null;
+        }
+      }, 150);
+    }
+
+    // تأكيد العمليات الحساسة كالحذف (Custom Confirm Dialog)
+    function showAppConfirm({ title = 'تأكيد العملية', message, icon = '⚠️', confirmText = 'نعم، متابعة', cancelText = 'إلغاء', type = 'danger' }) {
+      return new Promise((resolve) => {
+        appConfirmResolver = resolve;
+
+        const modal = document.getElementById('modal-app-confirm');
+        const card = document.getElementById('modal-app-confirm-card');
+        const iconEl = document.getElementById('app-confirm-icon');
+        const iconWrap = document.getElementById('app-confirm-icon-wrap');
+        const titleEl = document.getElementById('app-confirm-title');
+        const msgEl = document.getElementById('app-confirm-message');
+        const glowEl = document.getElementById('app-confirm-glow');
+        const okBtn = document.getElementById('app-confirm-ok-btn');
+        const cancelBtn = document.getElementById('app-confirm-cancel-btn');
+
+        if (!modal || !card) {
+          resolve(true);
+          return;
+        }
+
+        iconEl.innerText = icon;
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        cancelBtn.innerText = cancelText;
+        okBtn.innerHTML = `<span>${confirmText}</span>`;
+
+        if (type === 'danger') {
+          glowEl.className = 'absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none bg-rose-500';
+          iconWrap.className = 'w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-rose-500/30 bg-rose-500/15 text-rose-400';
+          okBtn.className = 'flex-1 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-black py-2.5 rounded-xl shadow-lg shadow-rose-600/30 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5';
+        } else {
+          glowEl.className = 'absolute -top-12 -right-12 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none bg-amber-500';
+          iconWrap.className = 'w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-4 shadow-lg border border-amber-500/30 bg-amber-500/15 text-amber-400';
+          okBtn.className = 'flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-xs flex items-center justify-center gap-1.5';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          card.classList.remove('scale-95');
+          card.classList.add('scale-100');
+        }, 10);
+      });
+    }
+
+    function handleAppConfirmResult(result) {
+      const modal = document.getElementById('modal-app-confirm');
+      const card = document.getElementById('modal-app-confirm-card');
+      if (!modal || !card) return;
+      card.classList.remove('scale-100');
+      card.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        if (appConfirmResolver) {
+          appConfirmResolver(result);
+          appConfirmResolver = null;
+        }
+      }, 150);
+    }
+
+    // إغلاق النوافذ عند الضغط على Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const alertModal = document.getElementById('modal-app-alert');
+        if (alertModal && !alertModal.classList.contains('hidden')) {
+          closeAppAlert();
+        }
+        const confirmModal = document.getElementById('modal-app-confirm');
+        if (confirmModal && !confirmModal.classList.contains('hidden')) {
+          handleAppConfirmResult(false);
+        }
+      }
+    });
+
+    // تحويل كل استدعاءات alert الأصلية في المتصفح إلى النافذة الرسومية الفخمة وسط الشاشة تلقائياً
+    window.alert = function(msg) {
+      showAppAlert(msg);
+    };
 
     // مزودات خرائط رسمية ومجانية 100% بدون أي حظر وبدون أي علامة مائية (Esri Global CDN)
     const MAP_PROVIDERS = {
@@ -1753,9 +1970,15 @@
 
     // حذف سائق نهائياً (Supprimer Livreur)
     async function deleteDriver(driverId, driverName) {
-      if (!confirm(`⚠️ هل أنت متأكد من حذف السائق "${driverName}" نهائياً من المنصة؟\n\n- سيتم إزالة حسابه ومحفظته بشكل آمن.\n- ستبقى الطلبات التاريخية محفوظة بالأرشيف المالي.`)) {
-        return;
-      }
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف السائق',
+        message: `هل أنت متأكد من حذف السائق "${driverName}" نهائياً من المنصة؟\n\n- سيتم إزالة حسابه ومحفظته بشكل آمن.\n- ستبقى الطلبات التاريخية محفوظة بالأرشيف المالي.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف السائق',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/drivers/${driverId}`, {
@@ -1766,14 +1989,14 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400 || res.error) {
-          alert('❌ خطأ أثناء الحذف: ' + (res.message || 'فشلت العملية'));
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ أثناء الحذف', 'error');
         } else {
-          alert('🗑️ ' + (res.message || 'تم حذف السائق بنجاح'));
+          showAppAlert(`تم حذف السائق "${driverName}" بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
           loadDashboard();
           if (typeof loadFinances === 'function') loadFinances();
         }
       } catch (err) {
-        alert('حدث خطأ في الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ اتصال', 'error');
       }
     }
 
@@ -1874,8 +2097,16 @@
 
     // حظر/إلغاء حظر الحساب كلياً (Block / Unblock API)
     async function toggleBlockUser(userId, isActive) {
-      const actionText = isActive ? 'رفع الحظر' : 'حظر الحساب كلياً';
-      if (!confirm(`هل أنت متأكد من ${actionText}؟`)) return;
+      const actionText = isActive ? 'رفع الحظر وتنشيط الحساب' : 'حظر الحساب كلياً';
+      const ok = await showAppConfirm({
+        title: isActive ? 'تأكيد رفع الحظر' : 'تأكيد حظر الحساب',
+        message: `هل أنت متأكد من ${actionText}؟`,
+        icon: isActive ? '🔓' : '🚫',
+        confirmText: isActive ? '🔓 نعم، رفع الحظر' : '🚫 نعم، حظر الحساب',
+        cancelText: 'إلغاء',
+        type: isActive ? 'warning' : 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/users/${userId}/status`, {
@@ -1888,13 +2119,13 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400) {
-          alert('❌ خطأ: ' + (res.message || 'فشلت العملية'));
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ', 'error');
         } else {
-          alert(isActive ? '🔓 تم رفع الحظر وتنشيط الحساب' : '🚫 تم حظر الحساب بنجاح');
+          showAppAlert(isActive ? '🔓 تم رفع الحظر وتنشيط الحساب' : '🚫 تم حظر الحساب بنجاح', 'حالة الحساب', 'success');
           loadDashboard();
         }
       } catch (e) {
-        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
       }
     }
 
@@ -2144,9 +2375,15 @@
 
     // حذف زبون نهائياً (Supprimer Client)
     async function deleteClient(clientId, clientName) {
-      if (!confirm(`⚠️ هل أنت متأكد من حذف الزبون "${clientName}" نهائياً من المنصة؟\n\n- سيتم حذف حسابه وطلباته نهائياً من النظام.`)) {
-        return;
-      }
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف الزبون',
+        message: `هل أنت متأكد من حذف الزبون "${clientName}" نهائياً من المنصة؟\n\n- سيتم حذف حسابه وسجل طلباته نهائياً من النظام.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الزبون',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/clients/${clientId}`, {
@@ -2157,13 +2394,13 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400 || res.error) {
-          alert('❌ خطأ أثناء الحذف: ' + (res.message || 'فشلت العملية'));
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ أثناء الحذف', 'error');
         } else {
-          alert('🗑️ ' + (res.message || 'تم حذف الزبون بنجاح'));
+          showAppAlert(`تم حذف الزبون "${clientName}" بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
           loadDashboard();
         }
       } catch (err) {
-        alert('حدث خطأ في الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ اتصال', 'error');
       }
     }
 
@@ -2415,7 +2652,15 @@
     }
 
     async function deletePromo(id, code) {
-      if (!confirm(`هل أنت متأكد من حذف كود الخصم "${code}" نهائياً؟`)) return;
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف كود الخصم',
+        message: `هل أنت متأكد من حذف كود الخصم "${code}" نهائياً؟`,
+        icon: '🏷️',
+        confirmText: 'نعم، حذف الكود',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/promos/${id}`, {
@@ -2426,13 +2671,13 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400) {
-          alert('❌ خطأ: ' + (res.message || 'فشل حذف الكود'));
+          showAppAlert(res.message || 'فشل حذف الكود', 'خطأ', 'error');
         } else {
-          alert('🗑️ تم حذف كود الخصم بنجاح');
+          showAppAlert('🗑️ تم حذف كود الخصم بنجاح', 'تم الحذف', 'success');
           loadDashboard();
         }
       } catch (e) {
-        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
       }
     }
 
@@ -2652,8 +2897,16 @@
     }
 
     async function toggleAgentStatus(id, isActive) {
-      const actionText = isActive ? 'تفعيل' : 'تعطيل';
-      if (!confirm(`هل أنت متأكد من ${actionText} هذا الحساب؟`)) return;
+      const actionText = isActive ? 'تفعيل وتنشيط' : 'تعطيل وتجميد';
+      const ok = await showAppConfirm({
+        title: `${actionText} الحساب`,
+        message: `هل أنت متأكد من ${actionText} حساب هذا الوكيل؟`,
+        icon: isActive ? '🔓' : '⏸️',
+        confirmText: `نعم، ${actionText}`,
+        cancelText: 'إلغاء',
+        type: isActive ? 'warning' : 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/agents/${id}/status`, {
@@ -2666,17 +2919,26 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400) {
-          alert('❌ خطأ: ' + (res.message || 'فشلت العملية'));
+          showAppAlert(res.message || 'فشلت العملية', 'خطأ', 'error');
         } else {
+          showAppAlert(isActive ? '🔓 تم تفعيل الحساب بنجاح' : '⏸️ تم تعطيل الحساب', 'حالة الحساب', 'success');
           loadDashboard();
         }
       } catch (e) {
-        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
       }
     }
 
     async function deleteAgent(id, name) {
-      if (!confirm(`هل أنت متأكد من حذف حساب "${name}" نهائياً من فريق العمل؟`)) return;
+      const ok = await showAppConfirm({
+        title: 'تأكيد حذف الوكيل',
+        message: `هل أنت متأكد من حذف حساب "${name}" نهائياً من فريق العمل؟`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الحساب',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
 
       try {
         const res = await fetch(`${API_BASE}/admin/agents/${id}`, {
@@ -2687,13 +2949,13 @@
         }).then(r => r.json());
 
         if (res.statusCode >= 400) {
-          alert('❌ خطأ: ' + (res.message || 'فشل حذف الحساب'));
+          showAppAlert(res.message || 'فشل حذف الحساب', 'خطأ', 'error');
         } else {
-          alert('🗑️ تم حذف حساب الوكيل بنجاح');
+          showAppAlert('🗑️ تم حذف حساب الوكيل بنجاح', 'تم الحذف', 'success');
           loadDashboard();
         }
       } catch (e) {
-        alert('حدث خطأ أثناء الاتصال بالسيرفر');
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ', 'error');
       }
     }
 
