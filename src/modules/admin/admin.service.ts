@@ -621,4 +621,102 @@ export class AdminService {
       agent,
     };
   }
+
+  /**
+   * إحصائيات مالية شاملة وسجل المعاملات
+   */
+  async getFinancialOverview() {
+    const [revenueRes] = await this.db.query(`
+      SELECT 
+        COALESCE(SUM(ABS(amount)), 0) as total_commissions_earned
+      FROM wallet_transactions
+      WHERE type = 'commission_deduction'
+    `);
+
+    const [walletStats] = await this.db.query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN balance > 0 THEN balance ELSE 0 END), 0) as total_positive_balances,
+        COALESCE(SUM(CASE WHEN balance < 0 THEN ABS(balance) ELSE 0 END), 0) as total_driver_debts,
+        COUNT(*) as total_wallets
+      FROM wallets
+    `);
+
+    const recentTransactions = await this.db.query(`
+      SELECT 
+        wt.id, wt.wallet_id, wt.type, wt.amount, wt.balance_after, wt.description, wt.created_at,
+        u.name as user_name, u.phone as user_phone, u.role as user_role
+      FROM wallet_transactions wt
+      JOIN wallets w ON w.id = wt.wallet_id
+      JOIN users u ON u.id = w.user_id
+      ORDER BY wt.created_at DESC
+      LIMIT 30
+    `);
+
+    return {
+      total_commissions_earned: parseFloat(revenueRes?.total_commissions_earned || 0),
+      total_positive_balances: parseFloat(walletStats?.total_positive_balances || 0),
+      total_driver_debts: parseFloat(walletStats?.total_driver_debts || 0),
+      total_wallets: parseInt(walletStats?.total_wallets || 0),
+      recent_transactions: recentTransactions,
+    };
+  }
+
+  /**
+   * شحن رصيد محفظة السائق أو تسوية الديون نقدياً / بريدي موب
+   */
+  async topUpDriverWallet(driverId: string, amount: number, reference = 'شحن رصيد من الإدارة') {
+    if (!amount || amount <= 0) {
+      throw new BadRequestException('المبلغ يجب أن يكون أكبر من 0 دج');
+    }
+
+    const [driver] = await this.db.query(
+      `SELECT user_id FROM drivers WHERE id = $1 OR user_id = $1`,
+      [driverId],
+    );
+    if (!driver) {
+      throw new NotFoundException('السائق غير موجود');
+    }
+
+    let [wallet] = await this.db.query(
+      `SELECT id, balance FROM wallets WHERE user_id = $1`,
+      [driver.user_id],
+    );
+    if (!wallet) {
+      [wallet] = await this.db.query(
+        `INSERT INTO wallets (user_id, balance, debt_limit, currency)
+         VALUES ($1, 0.00, 3000.00, 'DZD') RETURNING id, balance`,
+        [driver.user_id],
+      );
+    }
+
+    const newBalance = parseFloat(wallet.balance) + amount;
+
+    const queryRunner = this.db.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.query(
+        `UPDATE wallets SET balance = $1, updated_at = NOW() WHERE id = $2`,
+        [newBalance, wallet.id],
+      );
+
+      await queryRunner.query(
+        `INSERT INTO wallet_transactions (wallet_id, type, amount, balance_after, description)
+         VALUES ($1, 'deposit', $2, $3, $4)`,
+        [wallet.id, amount, newBalance, reference],
+      );
+
+      await queryRunner.commitTransaction();
+      return {
+        message: 'تم شحن رصيد السائق بنجاح',
+        new_balance: newBalance,
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

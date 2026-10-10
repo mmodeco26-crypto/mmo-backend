@@ -292,6 +292,9 @@ export class OrdersService {
     // 📡 بث فوري للتحديث لغرفة الطلب
     this.trackingGateway.broadcastOrderStatus(orderId, newStatus);
 
+    // 🔔 إرسال إشعار فوري للعميل بالتحديث
+    await this.notifyClientOrderStatus(order.client_id, orderId, newStatus);
+
     return updated;
   }
 
@@ -333,7 +336,7 @@ export class OrdersService {
 
     await this.notificationsService.sendMulticast(tokens, {
       title: '🏍️ طلب توصيل جديد!',
-      body:  `من: ${order.pickup_address} — ${order.total_price} ج.م`,
+      body:  `من: ${order.pickup_address} — ${order.total_price} دج`,
       data:  { order_id: order.id, type: 'NEW_ORDER' },
     });
   }
@@ -350,8 +353,34 @@ export class OrdersService {
 
     await this.notificationsService.sendOne(user.fcm_token, {
       title: '✅ تم قبول طلبك!',
-      body:  'السائق في طريقه إليك الآن',
+      body:  'السائق في طريقه إليك الآن بالدراجة النارية',
       data:  { order_id: order.id, type: 'ORDER_ACCEPTED' },
+    });
+  }
+
+  private async notifyClientOrderStatus(
+    clientId: string,
+    orderId: string,
+    status: string,
+  ): Promise<void> {
+    const [user] = await this.db.query(
+      `SELECT fcm_token FROM users WHERE id = $1 AND fcm_token IS NOT NULL`,
+      [clientId],
+    );
+    if (!user?.fcm_token) return;
+
+    const titles: Record<string, string> = {
+      picked_up: '📦 تم استلام الطرد بنجاح!',
+      in_transit: '🛵 السائق متوجه نحو نقطة التسليم',
+      delivered: '🎉 وصل طلبك! تم التوصيل بنجاح',
+      cancelled: '❌ تم إلغاء الطلب',
+    };
+
+    const title = titles[status] || `تحديث للطلب: ${status}`;
+    await this.notificationsService.sendOne(user.fcm_token, {
+      title,
+      body: `الطلب #${orderId.slice(0, 8)}: ${title}`,
+      data: { order_id: orderId, type: 'STATUS_UPDATE', status },
     });
   }
 }

@@ -242,4 +242,29 @@ export class AdminController {
     const pass = body.password || body.new_password || '';
     return this.adminService.resetAgentPassword(id, pass);
   }
+
+  @ApiOperation({ summary: 'نظرة عامة على مالية المنصة والعمولات وسجل المعاملات' })
+  @Get('finances')
+  getFinances() {
+    return this.adminService.getFinancialOverview();
+  }
+
+  @ApiOperation({ summary: 'شحن رصيد محفظة السائق أو تسوية الديون (Recharger Portefeuille Chiffour)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', example: 1000, description: 'مبلغ الشحن بالدينار الجزائري DZD' },
+        reference: { type: 'string', example: 'تسديد كاش بالمكتب / BaridiMob', description: 'سبب أو وسيلة الدفع' },
+      },
+      required: ['amount'],
+    },
+  })
+  @Post('drivers/:id/wallet/top-up')
+  topUpDriverWallet(
+    @Param('id') id: string,
+    @Body() body: { amount: number; reference?: string },
+  ) {
+    return this.adminService.topUpDriverWallet(id, body.amount, body.reference);
+  }
 }
