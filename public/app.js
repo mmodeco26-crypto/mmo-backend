@@ -1125,6 +1125,166 @@ function App() {
     }, 6500);
   };
 
+  // 🛵 Client Places Delivery Order (Manual Flow)
+  const handleClientSendOrder = () => {
+    if (isAutoSimulating) return;
+    const newOrderId = Math.random().toString(16).slice(2, 10);
+    const nowTime = new Date().toLocaleTimeString('ar-DZ', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    setSimActiveOrder({
+      id: newOrderId,
+      status: 'pending',
+      pickup_address: simPickup.name,
+      dropoff_address: simDropoff.name,
+      price: simCalculatedPrice,
+      distance_km: simDistanceKm,
+      package_type: simPackageType,
+      notes: simNotes
+    });
+    setSimProgress(0);
+    playAudioTone('order', soundEnabled);
+    setSimClientLogs(prev => [{
+      time: nowTime,
+      text: `📤 تم إرسال طلب التوصيل #${newOrderId} من [${simPickup.shortName}] إلى [${simDropoff.shortName}] — بانتظار قبول السائق`,
+      type: 'warning'
+    }, ...prev]);
+    setSimDriverLogs(prev => [{
+      time: nowTime,
+      text: `🔔 تنبيه للسائق: طلب توصيل جديد #${newOrderId} بقيمة ${simCalculatedPrice.toFixed(2)} DZD متاح للقبول!`,
+      type: 'warning'
+    }, ...prev]);
+  };
+
+  // 🛵 Driver Accepts Delivery Order
+  const handleDriverAcceptOrder = () => {
+    if (!simActiveOrder) return;
+    setSimActiveOrder(curr => ({
+      ...curr,
+      status: 'accepted'
+    }));
+    setSimProgress(15);
+    playAudioTone('action', soundEnabled);
+    const nowTime = new Date().toLocaleTimeString('ar-DZ');
+    setSimClientLogs(prev => [{
+      time: nowTime,
+      text: `🏍️ قبل السائق ${currentSimDriver.name} طلبك! الدراجة متجهة الآن إلى نقطة الاستلام`,
+      type: 'info'
+    }, ...prev]);
+    setSimDriverLogs(prev => [{
+      time: nowTime,
+      text: `✅ قبلت الطلب #${simActiveOrder.id}! توجه الآن لاستلام الطرد من ${simPickup.shortName}`,
+      type: 'success'
+    }, ...prev]);
+  };
+
+  // ❌ Driver Rejects Delivery Order
+  const handleDriverRejectOrder = () => {
+    if (!simActiveOrder) return;
+    setSimActiveOrder(curr => ({
+      ...curr,
+      status: 'cancelled'
+    }));
+    playAudioTone('error', soundEnabled);
+    const nowTime = new Date().toLocaleTimeString('ar-DZ');
+    setSimClientLogs(prev => [{
+      time: nowTime,
+      text: `❌ اعتذر السائق عن استلام الطلب. يمكنك إعادة الإرسال`,
+      type: 'error'
+    }, ...prev]);
+    setSimDriverLogs(prev => [{
+      time: nowTime,
+      text: `⚠️ تم رفض الطلب #${simActiveOrder.id} والعودة لوضع الاستعداد`,
+      type: 'warning'
+    }, ...prev]);
+  };
+
+  // 📦 Driver Picks Up Parcel ("ki yedi coller")
+  const handleDriverPickupParcel = () => {
+    if (!simActiveOrder) return;
+    setSimActiveOrder(curr => ({
+      ...curr,
+      status: 'picked_up'
+    }));
+    setSimProgress(35);
+    playAudioTone('action', soundEnabled);
+    const nowTime = new Date().toLocaleTimeString('ar-DZ');
+    setSimClientLogs(prev => [{
+      time: nowTime,
+      text: `📦 تم استلام الطرد بنجاح من طرف السائق ${currentSimDriver.name}، وهو في الطريق نحو الوجهة`,
+      type: 'info'
+    }, ...prev]);
+    setSimDriverLogs(prev => [{
+      time: nowTime,
+      text: `📦 استلمت الطرد بنجاح من نقطة الاستلام! انطلق الآن نحو وجهة التسليم (${simDropoff.shortName})`,
+      type: 'success'
+    }, ...prev]);
+  };
+
+  // 🏁 Driver Delivers Parcel & Collects Cash ("ki iyawssal")
+  const handleDriverDeliverCash = () => {
+    if (!simActiveOrder) return;
+    const orderId = simActiveOrder.id;
+    const price = simActiveOrder.price || simCalculatedPrice;
+    const driverShare = price * 0.85;
+
+    setSimActiveOrder(curr => ({
+      ...curr,
+      status: 'delivered'
+    }));
+    setSimProgress(100);
+    playAudioTone('delivered', soundEnabled);
+
+    // Credit driver wallet
+    setDrivers(curr => curr.map(d => d.id === currentSimDriver.id ? {
+      ...d,
+      wallet_balance: d.wallet_balance + driverShare,
+      total_deliveries: d.total_deliveries + 1
+    } : d));
+
+    // Add to main orders table
+    setOrders(curr => [{
+      id: orderId,
+      client_name: 'زبون محاكي (Direct)',
+      client_phone: '0550000000',
+      driver_name: currentSimDriver.name,
+      driver_phone: currentSimDriver.phone,
+      pickup_address: simPickup.name,
+      dropoff_address: simDropoff.name,
+      pickup_lat: simPickup.coords[0],
+      pickup_lng: simPickup.coords[1],
+      dropoff_lat: simDropoff.coords[0],
+      dropoff_lng: simDropoff.coords[1],
+      distance_km: simDistanceKm,
+      total_price: price,
+      discount_amount: 0,
+      status: 'delivered',
+      created_at: new Date().toISOString().slice(0, 16).replace('T', ' ')
+    }, ...curr]);
+
+    const nowTime = new Date().toLocaleTimeString('ar-DZ');
+    setSimClientLogs(prev => [{
+      time: nowTime,
+      text: `🎉 تم تسليم الطرد واستلام المبلغ ${price.toFixed(2)} DZD كاش بنجاح! شكراً لاختياركم موتو دليفري`,
+      type: 'success'
+    }, ...prev]);
+    setSimDriverLogs(prev => [{
+      time: nowTime,
+      text: `🎉 تم التوصيل كاش! تم إيداع +${driverShare.toFixed(2)} DZD في محفظتك بنجاح`,
+      type: 'success'
+    }, ...prev]);
+
+    if (typeof window.confetti === 'function') {
+      window.confetti({
+        particleCount: 90,
+        spread: 75,
+        origin: { y: 0.6 }
+      });
+    }
+  };
+
   // Handle order manual status transition
   const handleStepOrderStatus = orderId => {
     setOrders(curr => curr.map(o => {
@@ -1475,36 +1635,14 @@ function App() {
     mapTheme: mapTheme,
     setMapTheme: setMapTheme,
     switchToAdmin: () => setCurrentView('admin'),
-    onPickupParcel: () => {
-      setSimActiveOrder(curr => ({
-        ...curr,
-        status: 'picked_up'
-      }));
-      playAudioTone('action', soundEnabled);
-      setSimClientLogs(prev => [{
-        time: new Date().toLocaleTimeString('ar-DZ'),
-        text: 'تم استلام الطرد من الزبون 📦 وهو في الطريق',
-        type: 'info'
-      }, ...prev]);
-    },
-    onDeliverCash: () => {
-      setSimActiveOrder(curr => ({
-        ...curr,
-        status: 'delivered'
-      }));
-      setSimProgress(100);
-      playAudioTone('delivered', soundEnabled);
-      if (typeof window.confetti === 'function') {
-        window.confetti({
-          particleCount: 70,
-          spread: 60
-        });
-      }
-      setSimClientLogs(prev => [{
-        time: new Date().toLocaleTimeString('ar-DZ'),
-        text: `تم تسليم الطرد كاش واستلام المبلغ ${simCalculatedPrice.toLocaleString()} DZD ✅`,
-        type: 'success'
-      }, ...prev]);
+    onSendOrder: handleClientSendOrder,
+    onAcceptOrder: handleDriverAcceptOrder,
+    onRejectOrder: handleDriverRejectOrder,
+    onPickupParcel: handleDriverPickupParcel,
+    onDeliverCash: handleDriverDeliverCash,
+    onResetOrder: () => {
+      setSimActiveOrder(null);
+      setSimProgress(0);
     }
   }), modalEditPrice.open && /*#__PURE__*/React.createElement("div", {
     className: "fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150"
@@ -2847,8 +2985,12 @@ function SimulatorView({
   mapTheme,
   setMapTheme,
   switchToAdmin,
+  onSendOrder,
+  onAcceptOrder,
+  onRejectOrder,
   onPickupParcel,
-  onDeliverCash
+  onDeliverCash,
+  onResetOrder
 }) {
   return /*#__PURE__*/React.createElement("main", {
     className: "flex-1 max-w-[1600px] mx-auto w-full p-3 sm:p-5 lg:p-6 space-y-4"
@@ -2989,9 +3131,9 @@ function SimulatorView({
   }, "\u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0646\u0647\u0627\u0626\u064A \u0627\u0644\u0635\u0627\u0641\u064A:"), /*#__PURE__*/React.createElement("span", {
     className: "font-mono font-black text-emerald-400 text-base"
   }, simCalculatedPrice.toFixed(2), " DZD"))), /*#__PURE__*/React.createElement("button", {
-    onClick: runOneClickScenario,
+    onClick: onSendOrder,
     disabled: isAutoSimulating,
-    className: "w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+    className: "w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-95"
   }, /*#__PURE__*/React.createElement(Icons.Bike, {
     size: 18
   }), /*#__PURE__*/React.createElement("span", null, "\uD83D\uDEF5 \u062A\u0623\u0643\u064A\u062F \u0648\u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 (Envoyer)")), simActiveOrder && /*#__PURE__*/React.createElement("div", {
@@ -3001,12 +3143,22 @@ function SimulatorView({
   }, /*#__PURE__*/React.createElement("span", {
     className: "font-mono font-bold text-amber-400"
   }, "#", simActiveOrder.id), /*#__PURE__*/React.createElement("span", {
-    className: "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40"
-  }, simActiveOrder.status)), /*#__PURE__*/React.createElement("div", {
+    className: `px-2 py-0.5 rounded-full text-[10px] font-bold ${
+      simActiveOrder.status === 'delivered'
+        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+        : simActiveOrder.status === 'picked_up' || simActiveOrder.status === 'in_transit'
+        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+        : simActiveOrder.status === 'accepted'
+        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+        : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 animate-pulse'
+    }`
+  }, simActiveOrder.status === 'delivered' ? 'تم التسليم كاش ✅' : simActiveOrder.status === 'picked_up' ? 'تم الاستلام 📦' : simActiveOrder.status === 'in_transit' ? 'في الطريق 🚀' : simActiveOrder.status === 'accepted' ? 'مقبول 🏍️' : 'بانتظار قبول السائق ⏳')), /*#__PURE__*/React.createElement("div", {
     className: "text-[11px] text-slate-300"
   }, "\u0627\u0644\u0633\u0627\u0626\u0642: ", /*#__PURE__*/React.createElement("strong", {
     className: "text-slate-100"
-  }, currentSimDriver.name), " (", currentSimDriver.vehicle_model, ")")), /*#__PURE__*/React.createElement("div", {
+  }, currentSimDriver.name), " (", currentSimDriver.vehicle_model, ")"), simActiveOrder.status === 'pending' && /*#__PURE__*/React.createElement("div", {
+    className: "text-[10px] text-amber-300/90 font-mono bg-amber-500/10 p-2 rounded-xl border border-amber-500/20"
+  }, "📡 تم إرسال الطلب، انظر لوحة السائق على اليسار للقبول ⬅️"), /*#__PURE__*/React.createElement("div", {
     className: "pt-2 border-t border-slate-800"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[11px] font-bold text-slate-400 block mb-2"
@@ -3047,8 +3199,36 @@ function SimulatorView({
     bikeCoord: currentSimBikeCoord,
     driverName: currentSimDriver.name,
     progress: simProgress,
-    theme: mapTheme
-  })), /*#__PURE__*/React.createElement("div", {
+    theme: mapTheme,
+    orderStatus: simActiveOrder?.status
+  }), simActiveOrder && /*#__PURE__*/React.createElement("div", {
+    className: "absolute top-3 inset-x-3 z-[400] flex justify-center pointer-events-none"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `px-3.5 py-2 rounded-2xl text-xs font-bold shadow-2xl backdrop-blur-md border pointer-events-auto flex items-center gap-2 transition-all duration-300 ${
+      simActiveOrder.status === 'delivered' || simProgress >= 100
+        ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/60 ring-2 ring-emerald-500/30'
+        : simActiveOrder.status === 'picked_up' || simActiveOrder.status === 'in_transit'
+        ? 'bg-slate-900/90 text-amber-300 border-amber-500/50 ring-2 ring-amber-500/20'
+        : simActiveOrder.status === 'accepted'
+        ? 'bg-sky-950/90 text-sky-300 border-sky-500/50'
+        : 'bg-slate-900/90 text-amber-300 border-amber-500/40 animate-pulse'
+    }`
+  }, simActiveOrder.status === 'delivered' || simProgress >= 100 ? [
+    /*#__PURE__*/React.createElement("span", { key: 1, className: "text-lg animate-bounce" }, "🎉"),
+    /*#__PURE__*/React.createElement("span", { key: 2 }, `وصل السائق إلى ${simDropoff.shortName} وتم تسليم الطرد كاش بنجاح! (+${(simActiveOrder.price || simCalculatedPrice).toFixed(2)} DZD) ✨`)
+  ] : simActiveOrder.status === 'picked_up' ? [
+    /*#__PURE__*/React.createElement("span", { key: 1, className: "text-lg" }, "📦"),
+    /*#__PURE__*/React.createElement("span", { key: 2 }, `تم استلام الطرد من ${simPickup.shortName}! السائق متجه الآن نحو ${simDropoff.shortName} 🚀`)
+  ] : simActiveOrder.status === 'in_transit' ? [
+    /*#__PURE__*/React.createElement("span", { key: 1, className: "text-lg" }, "🛵"),
+    /*#__PURE__*/React.createElement("span", { key: 2 }, `جاري نقل الطرد على الطريق (${simProgress}%) — متبقي: ${(simDistanceKm * (1 - simProgress / 100)).toFixed(1)} كم`)
+  ] : simActiveOrder.status === 'accepted' ? [
+    /*#__PURE__*/React.createElement("span", { key: 1, className: "text-lg" }, "🏍️"),
+    /*#__PURE__*/React.createElement("span", { key: 2 }, `السائق ${currentSimDriver.name} قبل الطلب ويتجه لنقطة الاستلام (${simPickup.shortName})`)
+  ] : [
+    /*#__PURE__*/React.createElement("span", { key: 1, className: "text-lg animate-pulse" }, "⏳"),
+    /*#__PURE__*/React.createElement("span", { key: 2 }, `طلب جديد #${simActiveOrder.id} — بانتظار قبول السائق في لوحة السائق...`)
+  ]))), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs font-mono"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3 text-slate-400 text-[11px]"
@@ -3127,14 +3307,88 @@ function SimulatorView({
   }), /*#__PURE__*/React.createElement("div", {
     className: "flex justify-between text-[10px] text-slate-500 font-mono"
   }, /*#__PURE__*/React.createElement("span", null, "\u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0633\u062A\u0644\u0627\u0645 (0%)"), /*#__PURE__*/React.createElement("span", null, "\u0627\u0644\u0648\u0635\u0648\u0644 \u0644\u0644\u0648\u062C\u0647\u0629 (100%)"))), /*#__PURE__*/React.createElement("div", {
-    className: "grid grid-cols-2 gap-2"
+    className: "space-y-2 pt-1"
+  }, (!simActiveOrder || simActiveOrder.status === 'cancelled') && /*#__PURE__*/React.createElement("div", {
+    className: "p-3 rounded-2xl bg-slate-900 border border-slate-800 text-center space-y-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-xs text-slate-400 block"
+  }, "\uD83D\uDCE1 \u0631\u0627\u062F\u0627\u0631 \u0627\u0644\u0633\u0627\u0626\u0642 \u0646\u0634\u0637 \u2014 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u0645\u0646 \u0648\u0627\u062C\u0647\u0629 \u0627\u0644\u0632\u0628\u0648\u0646"), /*#__PURE__*/React.createElement("button", {
+    onClick: onSendOrder,
+    className: "py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition w-full"
+  }, "\uD83D\uDE80 \u0625\u0631\u0633\u0627\u0644 \u0637\u0644\u0628 \u062A\u062C\u0631\u064A\u0628\u064A \u0644\u0647\u0630\u0627 \u0627\u0644\u0633\u0627\u0626\u0642 \u0641\u0648\u0631\u0627\u064B")), simActiveOrder && simActiveOrder.status === 'pending' && /*#__PURE__*/React.createElement("div", {
+    className: "p-3.5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/70 shadow-xl shadow-amber-500/15 space-y-3 animate-pulse"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-black text-amber-400 text-xs flex items-center gap-1.5"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-base animate-bounce"
+  }, "\uD83D\uDEA8"), /*#__PURE__*/React.createElement("span", null, "\u0637\u0644\u0628 \u062A\u0648\u0635\u064A\u0644 \u062C\u062F\u064A\u062F \u0648\u0631\u062F \u0644\u0644\u0633\u0627\u0626\u0642!")), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[10px] px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-300 font-bold"
+  }, "#", simActiveOrder.id)), /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] space-y-1 text-slate-300 bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 font-sans"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-400"
+  }, "\uD83D\uDFE2 \u0627\u0644\u0627\u0633\u062A\u0644\u0627\u0645:"), /*#__PURE__*/React.createElement("strong", {
+    className: "text-slate-100"
+  }, simActiveOrder.pickup_address)), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-400"
+  }, "\uD83D\uDD34 \u0627\u0644\u062A\u0633\u0644\u064A\u0645:"), /*#__PURE__*/React.createElement("strong", {
+    className: "text-slate-100"
+  }, simActiveOrder.dropoff_address, ` (${simActiveOrder.distance_km} كم)`)), /*#__PURE__*/React.createElement("div", {
+    className: "flex justify-between items-center pt-1.5 border-t border-slate-800 text-xs"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-400"
+  }, "\uD83D\uDCB0 \u0627\u0644\u0623\u062C\u0631\u0629 \u0627\u0644\u0635\u0627\u0641\u064A\u0629:"), /*#__PURE__*/React.createElement("div", {
+    className: "text-left"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-emerald-400 font-mono font-black block"
+  }, (simActiveOrder.price || simCalculatedPrice).toFixed(2), " DZD"), /*#__PURE__*/React.createElement("span", {
+    className: "text-slate-400 text-[10px] font-mono"
+  }, `(ربحك: ${((simActiveOrder.price || simCalculatedPrice) * 0.85).toFixed(2)} DZD)`)))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 gap-2 pt-1"
   }, /*#__PURE__*/React.createElement("button", {
+    onClick: onAcceptOrder,
+    className: "py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-1.5 transition active:scale-95"
+  }, "\u2705 \u0642\u0628\u0648\u0644 \u0627\u0644\u0637\u0644\u0628 (Accepter)"), /*#__PURE__*/React.createElement("button", {
+    onClick: onRejectOrder,
+    className: "py-2.5 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs transition active:scale-95 flex items-center justify-center gap-1"
+  }, "\u274C \u0631\u0641\u0636 (Refuser)"))), simActiveOrder && simActiveOrder.status === 'accepted' && /*#__PURE__*/React.createElement("div", {
+    className: "p-3.5 rounded-2xl bg-sky-500/15 border border-sky-500/40 space-y-2.5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-xs"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-sky-300 flex items-center gap-1.5"
+  }, "\uD83C\uDFCD\uFE0F \u062A\u0645 \u0642\u0628\u0648\u0644 \u0627\u0644\u0637\u0644\u0628 \u2014 \u0627\u0644\u0633\u0627\u0626\u0642 \u0645\u062A\u0648\u062C\u0647 \u0644\u0644\u0627\u0633\u062A\u0644\u0627\u0645"), /*#__PURE__*/React.createElement("span", {
+    className: "text-[10px] font-mono text-sky-400"
+  }, "#", simActiveOrder.id)), /*#__PURE__*/React.createElement("button", {
     onClick: onPickupParcel,
-    className: "py-2.5 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs transition"
-  }, "\uD83D\uDCE6 \u0627\u0633\u062A\u0644\u0645\u062A \u0627\u0644\u0637\u0631\u062F"), /*#__PURE__*/React.createElement("button", {
+    className: "w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-black text-xs transition shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 active:scale-95"
+  }, "\uD83D\uDCE6 \u0627\u0633\u062A\u0644\u0645\u062A \u0627\u0644\u0637\u0631\u062F \u0645\u0646 \u0627\u0644\u0632\u0628\u0648\u0646 (Colis R\u00E9cup\u00E9r\u00E9)")), simActiveOrder && (simActiveOrder.status === 'picked_up' || simActiveOrder.status === 'in_transit') && /*#__PURE__*/React.createElement("div", {
+    className: "p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/40 space-y-2.5"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center justify-between text-xs"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-bold text-amber-300 flex items-center gap-1.5"
+  }, "\uD83D\uDCE6 \u0627\u0644\u0637\u0631\u062F \u0628\u062D\u0648\u0632\u0629 \u0627\u0644\u0633\u0627\u0626\u0642 \u2014 \u062C\u0627\u0631\u064A \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0644\u0644\u0648\u062C\u0647\u0629"), /*#__PURE__*/React.createElement("span", {
+    className: "font-mono text-[10px] text-amber-400 font-bold"
+  }, simProgress, "%")), /*#__PURE__*/React.createElement("button", {
     onClick: onDeliverCash,
-    className: "py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition shadow-lg shadow-emerald-500/20"
-  }, "\u2705 \u062A\u0645 \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0643\u0627\u0634")), /*#__PURE__*/React.createElement("div", {
+    className: "w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 active:scale-95 animate-pulse"
+  }, "\u2705 \u062A\u0645 \u0627\u0644\u0648\u0635\u0648\u0644 \u0648\u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0643\u0627\u0634 (Colis Livr\u00E9)")), simActiveOrder && simActiveOrder.status === 'delivered' && /*#__PURE__*/React.createElement("div", {
+    className: "p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-center space-y-2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-emerald-400 font-black text-xs flex items-center justify-center gap-1.5"
+  }, "\uD83C\uDF89 \u062A\u0645 \u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u0637\u0644\u0628 \u0628\u0646\u062C\u0627\u062D \u0648\u0627\u0633\u062A\u0644\u0627\u0645 \u0627\u0644\u0645\u0628\u0644\u063A \u0643\u0627\u0634!"), /*#__PURE__*/React.createElement("p", {
+    className: "text-[11px] text-slate-300"
+  }, `تم إيداع أرباح الرحلة (+${((simActiveOrder.price || simCalculatedPrice) * 0.85).toFixed(2)} DZD) في محفظة السائق مباشرة.`), /*#__PURE__*/React.createElement("button", {
+    onClick: onResetOrder,
+    className: "py-1.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition"
+  }, "\uD83D\uDD04 \u062A\u062C\u0631\u0628\u0629 \u0631\u062D\u0644\u0629 \u062C\u062F\u064A\u062F\u0629"))), /*#__PURE__*/React.createElement("div", {
     className: "pt-2 border-t border-slate-800"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-[11px] font-bold text-slate-400 block mb-2"
@@ -3145,7 +3399,7 @@ function SimulatorView({
     className: "p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-amber-400 ml-1"
-  }, "[", log.time, "]"), " ", log.text)))))));
+  }, "[", log.time, "]"), " ", log.text))))))));
 }
 
 // =========================================================================
@@ -3290,7 +3544,8 @@ function SimulatorLeafletMap({
   bikeCoord,
   driverName,
   progress,
-  theme
+  theme,
+  orderStatus
 }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
@@ -3368,7 +3623,7 @@ function SimulatorLeafletMap({
     }
   }, [theme]);
 
-  // Update Route Polyline & Pickup/Dropoff Markers (ONLY on route changes, NOT on progress changes!)
+  // Update Route Polyline & Pickup/Dropoff Markers (Reacts to route and orderStatus)
   useEffect(() => {
     if (!leafletMap.current || !pickup || !dropoff) return;
     const map = leafletMap.current;
@@ -3383,31 +3638,55 @@ function SimulatorLeafletMap({
       className: 'route-glow'
     }).addTo(map);
 
-    // Pickup Marker (Green)
+    // Pickup Marker (Green / Checked if parcel picked up "ki yedi coller")
     if (pickupMarkerRef.current) map.removeLayer(pickupMarkerRef.current);
+    const isPickedUp = orderStatus === 'picked_up' || orderStatus === 'in_transit' || orderStatus === 'delivered';
+    const pickupHtml = isPickedUp
+      ? '<div class="w-9 h-9 rounded-full bg-emerald-600 border-2 border-white flex items-center justify-center text-sm shadow-xl ring-4 ring-emerald-400/50" title="تم استلام الطرد">📦✔️</div>'
+      : '<div class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-sm shadow-xl radar-pulse" title="نقطة الاستلام">🟢</div>';
+
     const pickupIcon = L.divIcon({
-      html: '<div class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-sm shadow-xl radar-pulse">🟢</div>',
+      html: pickupHtml,
       className: 'custom-pin',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
     });
     pickupMarkerRef.current = L.marker(pickup, {
       icon: pickupIcon
     }).addTo(map);
-    pickupMarkerRef.current.bindPopup('<div class="p-2 text-xs font-bold text-right text-emerald-400">نقطة الاستلام (Pickup)</div>');
+    pickupMarkerRef.current.bindPopup(
+      isPickedUp
+        ? '<div class="p-2 text-xs font-bold text-right text-emerald-400">✅ تم استلام الطرد من هذه النقطة (Colis Récupéré)</div>'
+        : '<div class="p-2 text-xs font-bold text-right text-emerald-400">نقطة الاستلام (Pickup)</div>'
+    );
 
-    // Dropoff Marker (Red)
+    // Dropoff Marker (Red / Celebration if delivered "ki iyawssal")
     if (dropoffMarkerRef.current) map.removeLayer(dropoffMarkerRef.current);
+    const isDelivered = orderStatus === 'delivered' || progress >= 100;
+    const dropoffHtml = isDelivered
+      ? '<div class="w-10 h-10 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-base shadow-2xl ring-4 ring-emerald-400/60 animate-bounce" title="تم الوصول والتسليم!">🎉🏁</div>'
+      : '<div class="w-8 h-8 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-sm shadow-xl" title="وجهة التسليم">🔴</div>';
+
     const dropoffIcon = L.divIcon({
-      html: '<div class="w-8 h-8 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-sm shadow-xl">🔴</div>',
+      html: dropoffHtml,
       className: 'custom-pin',
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
     });
     dropoffMarkerRef.current = L.marker(dropoff, {
       icon: dropoffIcon
     }).addTo(map);
-    dropoffMarkerRef.current.bindPopup('<div class="p-2 text-xs font-bold text-right text-rose-400">وجهة التسليم (Dropoff)</div>');
+    dropoffMarkerRef.current.bindPopup(
+      isDelivered
+        ? '<div class="p-2.5 text-xs font-bold text-right text-emerald-400 font-sans space-y-1"><div class="text-sm">🎉 تم الوصول والتسليم كاش!</div><div class="text-slate-300 font-normal">وصل السائق إلى الوجهة وتم تسليم الطرد بنجاح</div></div>'
+        : '<div class="p-2 text-xs font-bold text-right text-rose-400">وجهة التسليم (Dropoff)</div>'
+    );
+
+    if (isDelivered && dropoffMarkerRef.current) {
+      setTimeout(() => {
+        try { dropoffMarkerRef.current.openPopup(); } catch (e) {}
+      }, 350);
+    }
 
     // Safe fitBounds after container size is guaranteed
     const applyBounds = () => {
@@ -3428,28 +3707,38 @@ function SimulatorLeafletMap({
     applyBounds();
     const tBounds = setTimeout(applyBounds, 120);
     return () => clearTimeout(tBounds);
-  }, [pickup, dropoff, pathPoints]);
+  }, [pickup, dropoff, pathPoints, orderStatus, progress]);
 
   // Update Moving Motorcycle Marker (smooth position update without remounting layers!)
   useEffect(() => {
     if (!leafletMap.current || !bikeCoord) return;
     const map = leafletMap.current;
 
+    const hasParcel = orderStatus === 'picked_up' || orderStatus === 'in_transit';
+    const isDelivered = orderStatus === 'delivered' || progress >= 100;
+    const bikeEmoji = isDelivered ? '🏁' : (hasParcel ? '🛵📦' : '🛵');
+    const badgeBg = isDelivered 
+      ? 'border-emerald-500/60 text-emerald-300' 
+      : (hasParcel ? 'border-amber-400/80 text-amber-300 bg-amber-950/80' : 'border-amber-500/40 text-amber-300');
+    const badgeText = isDelivered
+      ? `وصل للوجهة (${driverName})`
+      : (hasParcel ? `السائق: ${driverName} [يحمل الطرد 📦] (${progress}%)` : `السائق: ${driverName} (${progress}%)`);
+
     const bikeHtml = `
       <div class="relative flex flex-col items-center">
-        <div class="w-9 h-9 rounded-full bg-amber-500 text-slate-950 border-2 border-white shadow-xl flex items-center justify-center text-sm font-black">
-          🛵
+        <div class="w-10 h-10 rounded-full ${isDelivered ? 'bg-emerald-500 ring-4 ring-emerald-400/50' : (hasParcel ? 'bg-amber-400 ring-4 ring-amber-400/40' : 'bg-amber-500')} text-slate-950 border-2 border-white shadow-xl flex items-center justify-center text-sm font-black transition-transform">
+          ${bikeEmoji}
         </div>
-        <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-900 border border-amber-500/40 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md">
-          السائق: ${driverName} (${progress}%)
+        <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-900 border ${badgeBg} text-[10px] font-bold whitespace-nowrap shadow-md">
+          ${badgeText}
         </div>
       </div>
     `;
     const bikeIcon = L.divIcon({
       html: bikeHtml,
       className: 'custom-bike-marker',
-      iconSize: [42, 54],
-      iconAnchor: [21, 27]
+      iconSize: [46, 56],
+      iconAnchor: [23, 28]
     });
 
     if (bikeMarkerRef.current) {
@@ -3460,7 +3749,7 @@ function SimulatorLeafletMap({
         icon: bikeIcon
       }).addTo(map);
     }
-  }, [bikeCoord, driverName, progress]);
+  }, [bikeCoord, driverName, progress, orderStatus]);
 
   return /*#__PURE__*/React.createElement("div", {
     ref: mapRef,
