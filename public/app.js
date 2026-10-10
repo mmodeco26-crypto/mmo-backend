@@ -2906,14 +2906,17 @@ function SimulatorView({
   }), /*#__PURE__*/React.createElement("span", {
     className: "font-bold text-slate-100"
   }, "\u0645\u0633\u0627\u0631 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0645\u0628\u0627\u0634\u0631 \u2014 \u0634\u0628\u0643\u0629 \u0637\u0631\u0642 \u0627\u0644\u0639\u0627\u0635\u0645\u0629 DZ")), /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-1"
+    className: "flex items-center gap-1 bg-slate-900/80 p-0.5 rounded-lg border border-slate-800"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setMapTheme('dark'),
-    className: `px-2 py-0.5 rounded-lg text-[10px] font-bold ${mapTheme === 'dark' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`
+    className: `px-2 py-0.5 rounded text-[10px] font-bold ${mapTheme === 'dark' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'}`
   }, "\u0644\u064A\u0644\u064A \uD83C\uDF19"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setMapTheme('sat'),
-    className: `px-2 py-0.5 rounded-lg text-[10px] font-bold ${mapTheme === 'sat' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'}`
-  }, "\u0642\u0645\u0631 \uD83D\uDEF0\uFE0F"))), /*#__PURE__*/React.createElement("div", {
+    className: `px-2 py-0.5 rounded text-[10px] font-bold ${mapTheme === 'sat' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'}`
+  }, "\u0642\u0645\u0631 \uD83D\uDEF0\uFE0F"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setMapTheme('light'),
+    className: `px-2 py-0.5 rounded text-[10px] font-bold ${mapTheme === 'light' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-slate-200'}`
+  }, "\u2600\uFE0F \u0634\u0648\u0627\u0631\u0639"))), /*#__PURE__*/React.createElement("div", {
     className: "relative rounded-2xl overflow-hidden border border-slate-800 h-[480px] w-full bg-slate-950"
   }, /*#__PURE__*/React.createElement(SimulatorLeafletMap, {
     pickup: simPickup.coords,
@@ -3033,55 +3036,98 @@ function FleetRadarLeaflet({
 }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
+  const tileGroupRef = useRef(null);
   const markersRef = useRef([]);
+
+  // Initialize Map Once
   useEffect(() => {
     if (!mapRef.current) return;
     if (!leafletMap.current) {
-      leafletMap.current = L.map(mapRef.current, {
-        center: [36.7538, 3.0588],
-        // Alger Centre
+      const map = L.map(mapRef.current, {
+        center: [36.7538, 3.0588], // Alger Centre
         zoom: 12,
         zoomControl: false,
-        attributionControl: false
+        attributionControl: false,
+        fadeAnimation: false
       });
       L.control.zoom({
         position: 'bottomright'
-      }).addTo(leafletMap.current);
+      }).addTo(map);
+      tileGroupRef.current = L.layerGroup().addTo(map);
+      leafletMap.current = map;
     }
 
-    // Tile layer selector
-    let tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-    if (theme === 'sat') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    } else if (theme === 'light') {
-      tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    }
+    const map = leafletMap.current;
 
-    // Clear existing tile layers
-    leafletMap.current.eachLayer(layer => {
-      if (layer instanceof L.TileLayer) {
-        leafletMap.current.removeLayer(layer);
-      }
+    // Trigger invalidation on layout settle
+    const invalidate = () => {
+      if (map) map.invalidateSize();
+    };
+    invalidate();
+    const t1 = setTimeout(invalidate, 80);
+    const t2 = setTimeout(invalidate, 250);
+    const t3 = setTimeout(invalidate, 600);
+
+    const ro = new ResizeObserver(() => {
+      invalidate();
     });
-    L.tileLayer(tileUrl, {
-      maxZoom: 18
-    }).addTo(leafletMap.current);
+    if (mapRef.current) ro.observe(mapRef.current);
+    window.addEventListener('resize', invalidate);
 
-    // Update driver markers
-    markersRef.current.forEach(m => leafletMap.current.removeLayer(m));
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      ro.disconnect();
+      window.removeEventListener('resize', invalidate);
+    };
+  }, []);
+
+  // Update Tiles when Theme changes
+  useEffect(() => {
+    if (!leafletMap.current || !tileGroupRef.current) return;
+    tileGroupRef.current.clearLayers();
+
+    if (theme === 'sat') {
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+      }).addTo(tileGroupRef.current);
+    } else if (theme === 'light') {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: ['a', 'b', 'c']
+      }).addTo(tileGroupRef.current);
+    } else {
+      // Dark theme: ArcGIS Dark Canvas Base + Reference labels
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18
+      }).addTo(tileGroupRef.current);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18
+      }).addTo(tileGroupRef.current);
+    }
+  }, [theme]);
+
+  // Update Driver Markers
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    const map = leafletMap.current;
+
+    markersRef.current.forEach(m => map.removeLayer(m));
     markersRef.current = [];
+
     drivers.forEach(d => {
       const isOnline = d.is_online;
       const iconHtml = `
-            <div class="relative flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full ${isOnline ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50 radar-pulse' : 'bg-slate-700'} border-2 border-white flex items-center justify-center text-xs text-white font-bold">
-                🛵
-              </div>
-              <div class="mt-0.5 px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-[10px] font-bold text-slate-200 whitespace-nowrap">
-                ${d.name} ${isOnline ? '🟢' : ''}
-              </div>
-            </div>
-          `;
+        <div class="relative flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full ${isOnline ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50 radar-pulse' : 'bg-slate-700'} border-2 border-white flex items-center justify-center text-xs text-white font-bold">
+            🛵
+          </div>
+          <div class="mt-0.5 px-1.5 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-[10px] font-bold text-slate-200 whitespace-nowrap shadow-md">
+            ${d.name} ${isOnline ? '🟢' : ''}
+          </div>
+        </div>
+      `;
       const icon = L.divIcon({
         html: iconHtml,
         className: 'custom-fleet-icon',
@@ -3090,27 +3136,26 @@ function FleetRadarLeaflet({
       });
       const marker = L.marker([d.lat, d.lng], {
         icon
-      }).addTo(leafletMap.current);
+      }).addTo(map);
       marker.bindPopup(`
-            <div class="p-3 text-right font-sans text-xs space-y-1.5" style="min-width: 190px;">
-              <div class="font-bold text-slate-100 text-sm">${d.name} (${d.vehicle_model})</div>
-              <div class="text-slate-400 font-mono text-[11px]">${d.vehicle_plate}</div>
-              <div class="text-emerald-400 font-mono font-bold">الرصيد: ${d.wallet_balance.toFixed(2)} DZD</div>
-              <div class="pt-1.5 border-t border-slate-800">
-                <a href="tel:${d.phone}" class="block text-center py-1 bg-amber-500 text-slate-950 font-bold rounded-lg text-xs">
-                  📞 اتصال مباشر
-                </a>
-              </div>
-            </div>
-          `);
+        <div class="p-3 text-right font-sans text-xs space-y-1.5" style="min-width: 190px;">
+          <div class="font-bold text-slate-100 text-sm">${d.name} (${d.vehicle_model})</div>
+          <div class="text-slate-400 font-mono text-[11px]">${d.vehicle_plate}</div>
+          <div class="text-emerald-400 font-mono font-bold">الرصيد: ${d.wallet_balance.toFixed(2)} DZD</div>
+          <div class="pt-1.5 border-t border-slate-800">
+            <a href="tel:${d.phone}" class="block text-center py-1 bg-amber-500 text-slate-950 font-bold rounded-lg text-xs">
+              📞 اتصال مباشر
+            </a>
+          </div>
+        </div>
+      `);
       markersRef.current.push(marker);
     });
-    return () => {
-      // keep map instance alive
-    };
-  }, [drivers, theme]);
+  }, [drivers]);
+
   return /*#__PURE__*/React.createElement("div", {
     ref: mapRef,
+    style: { width: '100%', height: '100%', minHeight: '288px' },
     className: "w-full h-full"
   });
 }
@@ -3127,107 +3172,178 @@ function SimulatorLeafletMap({
 }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
+  const tileGroupRef = useRef(null);
   const polylineRef = useRef(null);
   const pickupMarkerRef = useRef(null);
   const dropoffMarkerRef = useRef(null);
   const bikeMarkerRef = useRef(null);
+
+  // Initialize Map Once
   useEffect(() => {
     if (!mapRef.current) return;
     if (!leafletMap.current) {
-      leafletMap.current = L.map(mapRef.current, {
+      const map = L.map(mapRef.current, {
         center: [36.7538, 3.0588],
         zoom: 12,
         zoomControl: false,
-        attributionControl: false
+        attributionControl: false,
+        fadeAnimation: false
       });
       L.control.zoom({
         position: 'bottomright'
-      }).addTo(leafletMap.current);
+      }).addTo(map);
+      tileGroupRef.current = L.layerGroup().addTo(map);
+      leafletMap.current = map;
     }
 
-    // Tile layer
-    let tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
-    if (theme === 'sat') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    }
-    leafletMap.current.eachLayer(layer => {
-      if (layer instanceof L.TileLayer) {
-        leafletMap.current.removeLayer(layer);
-      }
+    const map = leafletMap.current;
+    const invalidate = () => {
+      if (map) map.invalidateSize();
+    };
+
+    invalidate();
+    const t1 = setTimeout(invalidate, 80);
+    const t2 = setTimeout(invalidate, 250);
+    const t3 = setTimeout(invalidate, 600);
+
+    const ro = new ResizeObserver(() => {
+      invalidate();
     });
-    L.tileLayer(tileUrl, {
-      maxZoom: 18
-    }).addTo(leafletMap.current);
+    if (mapRef.current) ro.observe(mapRef.current);
+    window.addEventListener('resize', invalidate);
 
-    // Draw / Update Polyline
-    if (polylineRef.current) leafletMap.current.removeLayer(polylineRef.current);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      ro.disconnect();
+      window.removeEventListener('resize', invalidate);
+    };
+  }, []);
+
+  // Update Tiles when Theme changes
+  useEffect(() => {
+    if (!leafletMap.current || !tileGroupRef.current) return;
+    tileGroupRef.current.clearLayers();
+
+    if (theme === 'sat') {
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+      }).addTo(tileGroupRef.current);
+    } else if (theme === 'light') {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: ['a', 'b', 'c']
+      }).addTo(tileGroupRef.current);
+    } else {
+      // Dark theme: Base + Reference
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18
+      }).addTo(tileGroupRef.current);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18
+      }).addTo(tileGroupRef.current);
+    }
+  }, [theme]);
+
+  // Update Route Polyline & Pickup/Dropoff Markers (ONLY on route changes, NOT on progress changes!)
+  useEffect(() => {
+    if (!leafletMap.current || !pickup || !dropoff) return;
+    const map = leafletMap.current;
+
+    // Draw / Replace Polyline
+    if (polylineRef.current) map.removeLayer(polylineRef.current);
     polylineRef.current = L.polyline(pathPoints, {
       color: '#0284c7',
       weight: 5,
-      opacity: 0.85,
+      opacity: 0.9,
       dashArray: '8, 8',
       className: 'route-glow'
-    }).addTo(leafletMap.current);
+    }).addTo(map);
 
     // Pickup Marker (Green)
-    if (pickupMarkerRef.current) leafletMap.current.removeLayer(pickupMarkerRef.current);
+    if (pickupMarkerRef.current) map.removeLayer(pickupMarkerRef.current);
     const pickupIcon = L.divIcon({
-      html: '<div class="w-7 h-7 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-xs shadow-lg radar-pulse">🟢</div>',
+      html: '<div class="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-sm shadow-xl radar-pulse">🟢</div>',
       className: 'custom-pin',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
     pickupMarkerRef.current = L.marker(pickup, {
       icon: pickupIcon
-    }).addTo(leafletMap.current);
+    }).addTo(map);
     pickupMarkerRef.current.bindPopup('<div class="p-2 text-xs font-bold text-right text-emerald-400">نقطة الاستلام (Pickup)</div>');
 
     // Dropoff Marker (Red)
-    if (dropoffMarkerRef.current) leafletMap.current.removeLayer(dropoffMarkerRef.current);
+    if (dropoffMarkerRef.current) map.removeLayer(dropoffMarkerRef.current);
     const dropoffIcon = L.divIcon({
-      html: '<div class="w-7 h-7 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-xs shadow-lg">🔴</div>',
+      html: '<div class="w-8 h-8 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-sm shadow-xl">🔴</div>',
       className: 'custom-pin',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
     dropoffMarkerRef.current = L.marker(dropoff, {
       icon: dropoffIcon
-    }).addTo(leafletMap.current);
+    }).addTo(map);
     dropoffMarkerRef.current.bindPopup('<div class="p-2 text-xs font-bold text-right text-rose-400">وجهة التسليم (Dropoff)</div>');
 
-    // Fit map bounds to encompass the journey
-    const bounds = L.latLngBounds([pickup, dropoff]);
-    leafletMap.current.fitBounds(bounds, {
-      padding: [50, 50]
-    });
-  }, [pickup, dropoff, pathPoints, theme]);
+    // Safe fitBounds after container size is guaranteed
+    const applyBounds = () => {
+      if (!map) return;
+      map.invalidateSize();
+      try {
+        const bounds = L.latLngBounds([pickup, dropoff]);
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 15
+          });
+        }
+      } catch (e) {
+        console.warn('fitBounds error:', e);
+      }
+    };
+    applyBounds();
+    const tBounds = setTimeout(applyBounds, 120);
+    return () => clearTimeout(tBounds);
+  }, [pickup, dropoff, pathPoints]);
 
-  // Moving Motorcycle Marker along path
+  // Update Moving Motorcycle Marker (smooth position update without remounting layers!)
   useEffect(() => {
     if (!leafletMap.current || !bikeCoord) return;
-    if (bikeMarkerRef.current) leafletMap.current.removeLayer(bikeMarkerRef.current);
+    const map = leafletMap.current;
+
+    const bikeHtml = `
+      <div class="relative flex flex-col items-center">
+        <div class="w-9 h-9 rounded-full bg-amber-500 text-slate-950 border-2 border-white shadow-xl flex items-center justify-center text-sm font-black">
+          🛵
+        </div>
+        <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-900 border border-amber-500/40 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md">
+          السائق: ${driverName} (${progress}%)
+        </div>
+      </div>
+    `;
     const bikeIcon = L.divIcon({
-      html: `
-            <div class="relative flex flex-col items-center">
-              <div class="w-9 h-9 rounded-full bg-amber-500 text-slate-950 border-2 border-white shadow-xl flex items-center justify-center text-sm font-black transition-transform duration-200">
-                🛵
-              </div>
-              <div class="mt-1 px-2 py-0.5 rounded-md bg-slate-900 border border-amber-500/40 text-[10px] font-bold text-amber-300 whitespace-nowrap shadow-md">
-                السائق: ${driverName} (${progress}%)
-              </div>
-            </div>
-          `,
+      html: bikeHtml,
       className: 'custom-bike-marker',
       iconSize: [42, 54],
       iconAnchor: [21, 27]
     });
-    bikeMarkerRef.current = L.marker(bikeCoord, {
-      icon: bikeIcon
-    }).addTo(leafletMap.current);
+
+    if (bikeMarkerRef.current) {
+      bikeMarkerRef.current.setLatLng(bikeCoord);
+      bikeMarkerRef.current.setIcon(bikeIcon);
+    } else {
+      bikeMarkerRef.current = L.marker(bikeCoord, {
+        icon: bikeIcon
+      }).addTo(map);
+    }
   }, [bikeCoord, driverName, progress]);
+
   return /*#__PURE__*/React.createElement("div", {
     ref: mapRef,
-    className: "w-full h-full"
+    style: { width: '100%', height: '100%', minHeight: '480px' },
+    className: "w-full h-full min-h-[480px]"
   });
 }
 

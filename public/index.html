@@ -127,6 +127,24 @@
     .leaflet-interactive.route-glow {
       filter: drop-shadow(0 0 6px #0284c7);
     }
+
+    /* Critical Leaflet + Tailwind CSS Image Reset */
+    .leaflet-container img,
+    .leaflet-container .leaflet-tile,
+    .leaflet-tile,
+    .leaflet-tile-container img {
+      max-width: none !important;
+      max-height: none !important;
+    }
+    .leaflet-container {
+      width: 100% !important;
+      height: 100% !important;
+      z-index: 10;
+    }
+    .leaflet-control-container .leaflet-top,
+    .leaflet-control-container .leaflet-bottom {
+      z-index: 1000 !important;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased font-sans selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden min-h-screen">
