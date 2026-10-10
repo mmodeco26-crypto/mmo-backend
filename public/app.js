@@ -1260,18 +1260,31 @@ function App() {
       minute: '2-digit',
       second: '2-digit'
     });
-    setSimActiveOrder({
+    const orderObj = {
       id: newOrderId,
       status: 'pending',
       pickup_address: simPickup.name,
       dropoff_address: simDropoff.name,
       price: simCalculatedPrice,
+      total_price: simCalculatedPrice,
+      driver_net: Math.round(simCalculatedPrice * 0.85),
       distance_km: simDistanceKm,
       package_type: simPackageType,
       notes: simNotes
-    });
+    };
+    setSimActiveOrder(orderObj);
     setSimProgress(0);
     playAudioTone('order', soundEnabled);
+
+    // بث الطلب الفوري لتطبيق الشوفور في التبويب الآخر (BroadcastChannel & LocalStorage)
+    try {
+      const bc = new BroadcastChannel('mmo_delivery_channel');
+      bc.postMessage({ type: 'NEW_ORDER', order: orderObj });
+    } catch (e) {}
+    try {
+      localStorage.setItem('mmo_latest_order', JSON.stringify(orderObj));
+    } catch (e) {}
+
     setSimClientLogs(prev => [{
       time: nowTime,
       text: `📤 تم إرسال طلب التوصيل #${newOrderId} من [${simPickup.shortName}] إلى [${simDropoff.shortName}] — بانتظار قبول السائق`,

@@ -149,7 +149,12 @@
           <span>المحاكي</span>
         </a>
 
-        <!-- زر الصوت -->
+        <!-- زر الصوت والرنين -->
+        <button id="btn-audio-status" onclick="unlockAudio()" class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 animate-pulse" title="انقر لتفعيل رنين التنبيهات التلقائي">
+          <span id="audio-status-icon">🔔</span>
+          <span id="audio-status-text">تفعيل الرنين</span>
+        </button>
+
         <button id="btn-toggle-sound" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700 text-amber-400 text-xs transition" title="تفعيل/كتم الصوت">
           <span id="sound-icon">🔊</span>
         </button>
@@ -707,33 +712,127 @@
     let routePolyline = null;
 
     // تهيئة محرك الصوت (Web Audio API Synthesizer)
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
+    let ringInterval = null;
+    let currentActiveOrder = null;
+    let deliveryBroadcastChannel = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new AudioCtxClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function unlockAudio() {
+      try {
+        const ctx = getAudioContext();
+        ctx.resume().then(() => {
+          updateAudioStatusUI(true);
+          playTone('click');
+        });
+      } catch (e) {
+        console.warn('Unlock audio error:', e);
+      }
+    }
+
+    function updateAudioStatusUI(isActive) {
+      const btn = document.getElementById('btn-audio-status');
+      const icon = document.getElementById('audio-status-icon');
+      const text = document.getElementById('audio-status-text');
+      if (!btn) return;
+      if (isActive) {
+        btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        if (icon) icon.innerText = '🔊';
+        if (text) text.innerText = 'الرنين نشط 🟢';
+      } else {
+        btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse';
+        if (icon) icon.innerText = '🔔';
+        if (text) text.innerText = 'تفعيل الرنين';
+      }
+    }
+
+    // فك حظر الصوت في المتصفح عند أي نقرة للمستخدم
+    window.addEventListener('click', () => {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => updateAudioStatusUI(true));
+      }
+    }, { passive: true });
+    window.addEventListener('touchstart', () => {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => updateAudioStatusUI(true));
+      }
+    }, { passive: true });
+
+    // رنين إنذار وصول طلب جديد (Continuous Repeating Siren / Yssonier)
+    function playIncomingRingBeep() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // النغمة الأولى (عالية)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(880, now);
+        gain1.gain.setValueAtTime(0.35, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+        osc1.start(now);
+        osc1.stop(now + 0.22);
+
+        // النغمة الثانية (أعلى ومستعجلة)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(1318.5, now + 0.24); // E6 note
+        gain2.gain.setValueAtTime(0.4, now + 0.24);
+        gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+        osc2.start(now + 0.24);
+        osc2.stop(now + 0.55);
+      } catch (e) {
+        console.warn('Audio note error:', e);
+      }
+    }
+
+    function startContinuousRingtone() {
+      stopContinuousRingtone();
+      playIncomingRingBeep();
+      ringInterval = setInterval(() => {
+        playIncomingRingBeep();
+      }, 1200);
+    }
+
+    function stopContinuousRingtone() {
+      if (ringInterval) {
+        clearInterval(ringInterval);
+        ringInterval = null;
+      }
+      document.title = '🛵 لطيف موطو — تطبيق الشوفور (Livreur / Driver App DZ)';
+    }
 
     function playTone(type) {
       if (!soundEnabled) return;
       try {
-        if (!audioCtx) audioCtx = new AudioContext();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        const now = audioCtx.currentTime;
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
 
         if (type === 'incoming') {
-          // نغمة رنين وصول طلب جديد (Beep Beep)
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(880, now);
-          osc.frequency.setValueAtTime(1174, now + 0.15);
-          gain.gain.setValueAtTime(0.25, now);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-          osc.start(now);
-          osc.stop(now + 0.35);
+          playIncomingRingBeep();
         } else if (type === 'pickup') {
           // نغمة استلام الطرد
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(523.25, now);
           osc.frequency.setValueAtTime(659.25, now + 0.12);
@@ -743,6 +842,10 @@
           osc.stop(now + 0.25);
         } else if (type === 'cash') {
           // نغمة قبض الكاش والانتهاء (Cash Chime)
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
           osc.type = 'sine';
           osc.frequency.setValueAtTime(587.33, now);
           osc.frequency.setValueAtTime(880.00, now + 0.12);
@@ -753,6 +856,10 @@
           osc.stop(now + 0.5);
         } else {
           // نقرة عادية
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
           osc.type = 'sine';
           osc.frequency.setValueAtTime(440, now);
           gain.gain.setValueAtTime(0.15, now);
@@ -765,7 +872,7 @@
       }
     }
 
-    // تهيئة الخريطة Leaflet
+    // تهيئة الخريطة Leaflet بنمط داكن نظيف بدون علامات مائية
     function initMap() {
       map = L.map('driver-map', {
         center: [36.7450, 3.1200],
@@ -773,11 +880,13 @@
         zoomControl: true
       });
 
-      // نمط الخريطة الليلي الداكن
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        subdomains: 'abcd',
-        maxZoom: 19
+      // نمط الخريطة الليلي الداكن Esri Dark Gray (خالي 100% من العلامات المائية)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: 'Esri World Dark Gray'
+      }).addTo(map);
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18
       }).addTo(map);
 
       // أيقونة مكان الاستلام (🟢)
@@ -976,12 +1085,41 @@
       updateDriverLocation(0.15);
     }
 
-    // محاكاة طلب توصيل جديد فوري (Incoming Delivery Simulation)
-    function triggerSimulatedNewOrder() {
-      playTone('incoming');
+    // معالجة وصول طلب توصيل حقيقي أو تجريبي (Cross-Tab Live Dispatch Receiver)
+    function handleIncomingOrderReceived(order) {
+      if (!isOnline) {
+        console.log('Driver is offline, ignoring incoming order');
+        return;
+      }
+
+      currentActiveOrder = order;
+
+      // 1. ملء بيانات الطلب في النافذة المنبثقة
+      if (order.pickup_address) {
+        document.getElementById('incoming-pickup-text').innerText = order.pickup_address;
+      }
+      if (order.dropoff_address) {
+        document.getElementById('incoming-dropoff-text').innerText = order.dropoff_address;
+      }
+      const price = parseFloat(order.total_price) || 1033.50;
+      const net = order.driver_net || Math.round(price * 0.85);
+      document.getElementById('incoming-price-val').innerText = `${net.toLocaleString('fr-DZ')} DZD`;
+
+      if (order.distance_km) {
+        document.getElementById('incoming-distance-val').innerText = `${order.distance_km} كم`;
+      }
+
+      // 2. وميض عنوان الصفحة لتنبيه السائق حتى لو كان في تبويب آخر
+      document.title = '🚨 (1) طلب توصيل جديد كاش! — لطيف موطو';
+
+      // 3. فتح نافذة تنبيه وصول الطلب
       const modal = document.getElementById('modal-incoming-order');
       modal.classList.remove('hidden');
 
+      // 4. تشغيل الرنين المستمر (Yssonier!)
+      startContinuousRingtone();
+
+      // 5. شريط العد التنازلي التفاعلي (30 ثانية)
       let seconds = 30;
       const bar = document.getElementById('incoming-countdown-bar');
       const timerText = document.getElementById('incoming-timer-text');
@@ -1000,17 +1138,67 @@
       }, 1000);
     }
 
+    // محاكاة طلب توصيل جديد فوري محلياً
+    function triggerSimulatedNewOrder() {
+      handleIncomingOrderReceived({
+        id: 'ord-' + Math.random().toString(36).substring(2, 9),
+        pickup_address: 'البريد المركزي، الجزائر العاصمة',
+        dropoff_address: 'جامعة هواري بومدين (USTHB)، باب الزوار',
+        total_price: 1033.50,
+        driver_net: 878.50,
+        distance_km: 14.2,
+        package_type: 'طرد صغير وعاجل (وثائق)'
+      });
+    }
+
     function acceptIncomingOrder() {
+      stopContinuousRingtone();
       playTone('pickup');
       if (countdownInterval) clearInterval(countdownInterval);
       document.getElementById('modal-incoming-order').classList.add('hidden');
+
+      if (currentActiveOrder) {
+        document.getElementById('order-id-badge').innerText = '#' + (currentActiveOrder.id || '3a2f1d2e').slice(0, 8);
+        if (currentActiveOrder.pickup_address) {
+          document.getElementById('pickup-address-text').innerText = currentActiveOrder.pickup_address;
+        }
+        if (currentActiveOrder.dropoff_address) {
+          document.getElementById('dropoff-address-text').innerText = currentActiveOrder.dropoff_address;
+        }
+        const price = parseFloat(currentActiveOrder.total_price) || 1033.50;
+        const net = currentActiveOrder.driver_net || Math.round(price * 0.85);
+        document.getElementById('order-cash-total').innerText = `${price.toLocaleString('fr-DZ')} DZD`;
+        document.getElementById('order-driver-net').innerText = `${net.toLocaleString('fr-DZ')} DZD`;
+        if (currentActiveOrder.package_type) {
+          document.getElementById('package-type-badge').innerText = currentActiveOrder.package_type;
+        }
+      }
+
       handleDriverResetAction();
+
+      // إرسال إشعار للتبويبات الأخرى (الزبون والإدارة) بأن السائق قبل الطلب
+      broadcastDispatchEvent('ORDER_ACCEPTED', {
+        orderId: currentActiveOrder ? currentActiveOrder.id : null,
+        driver: DRIVER_PROFILES[currentDriverId]
+      });
     }
 
     function rejectIncomingOrder() {
+      stopContinuousRingtone();
       playTone('click');
       if (countdownInterval) clearInterval(countdownInterval);
       document.getElementById('modal-incoming-order').classList.add('hidden');
+    }
+
+    function broadcastDispatchEvent(type, payload) {
+      try {
+        if (deliveryBroadcastChannel) {
+          deliveryBroadcastChannel.postMessage({ type, ...payload });
+        }
+      } catch (e) {}
+      try {
+        localStorage.setItem('mmo_dispatch_event', JSON.stringify({ type, ...payload, t: Date.now() }));
+      } catch (e) {}
     }
 
     // تبديل حالة التواجد (Online / Offline)
@@ -1085,9 +1273,31 @@
       closeRechargeModal();
     }
 
-    // تشغيل الخريطة عند تحميل الصفحة
+    // تشغيل الخريطة والاستماع للأحداث عند تحميل الصفحة
     window.addEventListener('DOMContentLoaded', () => {
       initMap();
+
+      // 1. الاستماع للطلبات عبر BroadcastChannel الفوري
+      try {
+        deliveryBroadcastChannel = new BroadcastChannel('mmo_delivery_channel');
+        deliveryBroadcastChannel.onmessage = (event) => {
+          if (event.data && event.data.type === 'NEW_ORDER') {
+            handleIncomingOrderReceived(event.data.order);
+          }
+        };
+      } catch (e) {
+        console.log('BroadcastChannel not supported');
+      }
+
+      // 2. الاستماع للطلبات عبر أحداث التخزين المحلي localStorage (Cross-Tab Storage Event)
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'mmo_latest_order' && e.newValue) {
+          try {
+            const ord = JSON.parse(e.newValue);
+            handleIncomingOrderReceived(ord);
+          } catch (err) {}
+        }
+      });
     });
   </script>
 </body>

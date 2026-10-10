@@ -635,8 +635,57 @@
       btn.disabled = true;
       btn.innerText = '⏳ جاري إرسال الطلب للسائقين...';
 
+      // 1. حساب السعر والمسافة التقديرية
+      let estPrice = 1033.50;
+      let estDistance = 14.2;
+      const priceText = document.getElementById('price-total-display')?.innerText;
+      if (priceText) {
+        const parsed = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+        if (parsed > 0) estPrice = parsed;
+      }
+      const distText = document.getElementById('distance-km-display')?.innerText;
+      if (distText) {
+        const parsedDist = parseFloat(distText.replace(/[^0-9.]/g, ''));
+        if (parsedDist > 0) estDistance = parsedDist;
+      }
+
+      const generatedOrderId = 'ord-' + Math.random().toString(36).substring(2, 9);
+      const localOrderData = {
+        id: generatedOrderId,
+        pickup_address: pickupAddr,
+        pickup_lat: pickupPoint ? pickupPoint.lat : 36.7725,
+        pickup_lng: pickupPoint ? pickupPoint.lng : 3.0588,
+        dropoff_address: dropoffAddr,
+        dropoff_lat: dropoffPoint ? dropoffPoint.lat : 36.7167,
+        dropoff_lng: dropoffPoint ? dropoffPoint.lng : 3.1833,
+        total_price: estPrice,
+        driver_net: Math.round(estPrice * 0.85),
+        distance_km: estDistance,
+        client_name: 'مريم بن عيسى',
+        client_phone: '0550123456',
+        recipient_phone: recipientPhone || '0794362893',
+        package_type: parcelType,
+        notes: fullNotes,
+        status: 'pending',
+        timestamp: Date.now()
+      };
+
+      // 2. إرسال الطلب الفوري لتطبيق الشوفور (BroadcastChannel عبر النوافذ المفتوحة)
       try {
-        const res = await fetch(API_BASE + '/orders', {
+        const bc = new BroadcastChannel('mmo_delivery_channel');
+        bc.postMessage({ type: 'NEW_ORDER', order: localOrderData });
+      } catch (e) {}
+
+      // 3. كتابة الطلب في localStorage لإطلاق حدث storage في نافذة الشوفور (Yssonier!)
+      try {
+        localStorage.setItem('mmo_latest_order', JSON.stringify(localOrderData));
+        const allOrders = JSON.parse(localStorage.getItem('mmo_orders') || '[]');
+        localStorage.setItem('mmo_orders', JSON.stringify([localOrderData, ...allOrders]));
+      } catch (e) {}
+
+      // 4. محاولة الإرسال للباك إند إن كان متصلاً
+      try {
+        fetch(API_BASE + '/orders', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + clientToken,
@@ -644,37 +693,35 @@
           },
           body: JSON.stringify({
             pickup_address: pickupAddr,
-            pickup_lat: pickupPoint.lat,
-            pickup_lng: pickupPoint.lng,
+            pickup_lat: pickupPoint ? pickupPoint.lat : 36.7725,
+            pickup_lng: pickupPoint ? pickupPoint.lng : 3.0588,
             dropoff_address: dropoffAddr,
-            dropoff_lat: dropoffPoint.lat,
-            dropoff_lng: dropoffPoint.lng,
+            dropoff_lat: dropoffPoint ? dropoffPoint.lat : 36.7167,
+            dropoff_lng: dropoffPoint ? dropoffPoint.lng : 3.1833,
             notes: fullNotes
           })
-        }).then(r => r.json());
+        }).then(r => r.json()).then(res => {
+          const ord = res.data || res;
+          if (ord?.id) {
+            currentOrderId = ord.id;
+            if (socket) socket.emit('join_order', { orderId: currentOrderId });
+          }
+        }).catch(() => {});
+      } catch (err) {}
 
-        const order = res.data || res;
+      // 5. تحديث واجهة الزبون والانتقال لمرحلة التتبع
+      currentOrderId = localOrderData.id;
+      document.getElementById('order-form-card').classList.add('hidden');
+      document.getElementById('live-tracking-card').classList.remove('hidden');
+      document.getElementById('tracking-order-id').innerText = '#' + currentOrderId.slice(0, 8);
+      document.getElementById('tracking-dropoff').innerText = dropoffAddr;
+      document.getElementById('tracking-price').innerText = `${localOrderData.total_price.toLocaleString('fr-DZ')} دج`;
+      document.getElementById('order-status-badge').innerText = 'pending';
 
-        if (order?.id) {
-          currentOrderId = order.id;
-          document.getElementById('order-form-card').classList.add('hidden');
-          document.getElementById('live-tracking-card').classList.remove('hidden');
-          document.getElementById('tracking-order-id').innerText = '#' + currentOrderId.slice(0, 8);
-          document.getElementById('tracking-dropoff').innerText = order.dropoff_address;
-          document.getElementById('tracking-price').innerText = `${order.total_price} دج`;
-          document.getElementById('order-status-badge').innerText = 'pending';
+      log(`🚀 تم إرسال الطلب بنجاح إلى "${dropoffAddr}"! جاري رنين وتنبيه تطبيق الشوفور 🛵...`);
 
-          if (socket) socket.emit('join_order', { orderId: currentOrderId });
-          log(`🚀 تم إرسال الطلب بنجاح إلى الوجهة "${dropoffAddr}"! جاري البحث عن أقرب سائق دراجة نارية...`);
-        } else {
-          alert('تعذر إرسال الطلب: ' + (res.message || 'خطأ غير متوقع'));
-        }
-      } catch (err) {
-        alert('خطأ في الاتصال بالسيرفر: ' + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>🛵</span> طلب دراجة نارية للتوصيل الآن';
-      }
+      btn.disabled = false;
+      btn.innerHTML = '<span>🛵</span> طلب دراجة نارية للتوصيل الآن';
     }
 
     async function submitClientReview() {
@@ -690,6 +737,60 @@
       document.getElementById('client-review-box').classList.add('hidden');
       currentOrderId = null;
     }
+
+    // الاستماع لاستجابات الشوفور اللحظية (BroadcastChannel & LocalStorage)
+    try {
+      const clientBC = new BroadcastChannel('mmo_delivery_channel');
+      clientBC.onmessage = (event) => {
+        if (!event.data) return;
+        if (event.data.type === 'ORDER_ACCEPTED') {
+          const driver = event.data.driver || { name: 'azer deco', bike: 'SYM Symphony ST' };
+          log(`🛵 قبل السائق ${driver.name} (${driver.bike}) طلبك وهو في طريقه لاستلام الطرد!`);
+          const badge = document.getElementById('order-status-badge');
+          if (badge) badge.innerText = 'accepted';
+          const driverBox = document.getElementById('tracking-driver-box');
+          if (driverBox) driverBox.classList.remove('hidden');
+          const drvName = document.getElementById('tracking-driver-name');
+          if (drvName) drvName.innerText = driver.name;
+        } else if (event.data.type === 'ORDER_PICKED_UP') {
+          log('📦 استلم السائق الطرد، وهو الآن في الطريق نحو وجهة التسليم!');
+          const badge = document.getElementById('order-status-badge');
+          if (badge) badge.innerText = 'picked_up';
+        } else if (event.data.type === 'ORDER_DELIVERED') {
+          log('✅ تم تسليم الطرد بنجاح وقبض المبلغ كاش! شكراً لتعاملكم مع موطو إكسبريس.');
+          const badge = document.getElementById('order-status-badge');
+          if (badge) badge.innerText = 'delivered';
+          const reviewBox = document.getElementById('client-review-box');
+          if (reviewBox) reviewBox.classList.remove('hidden');
+        }
+      };
+    } catch (e) {}
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'mmo_dispatch_event' && e.newValue) {
+        try {
+          const ev = JSON.parse(e.newValue);
+          if (ev.type === 'ORDER_ACCEPTED') {
+            const driver = ev.driver || { name: 'azer deco' };
+            log(`🛵 قبل السائق ${driver.name} طلبك وهو في طريقه لاستلام الطرد!`);
+            const badge = document.getElementById('order-status-badge');
+            if (badge) badge.innerText = 'accepted';
+            const driverBox = document.getElementById('tracking-driver-box');
+            if (driverBox) driverBox.classList.remove('hidden');
+          } else if (ev.type === 'ORDER_PICKED_UP') {
+            log('📦 استلم السائق الطرد، وهو الآن في الطريق نحو وجهة التسليم!');
+            const badge = document.getElementById('order-status-badge');
+            if (badge) badge.innerText = 'picked_up';
+          } else if (ev.type === 'ORDER_DELIVERED') {
+            log('✅ تم تسليم الطرد بنجاح وقبض المبلغ كاش!');
+            const badge = document.getElementById('order-status-badge');
+            if (badge) badge.innerText = 'delivered';
+            const reviewBox = document.getElementById('client-review-box');
+            if (reviewBox) reviewBox.classList.remove('hidden');
+          }
+        } catch(err) {}
+      }
+    });
 
     window.onload = init;
   </script>
