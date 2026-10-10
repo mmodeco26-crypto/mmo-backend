@@ -49,16 +49,18 @@ export class AdminService {
         (SELECT COUNT(id) FROM users WHERE role IN ('admin', 'agent')) as total_agents
     `);
 
-    // 4. أحدث 10 طلبات
+    // 4. أحدث الطلبات المنفذة
     const recentOrders = await this.db.query(`
       SELECT 
-        o.id, o.pickup_address, o.dropoff_address, o.total_price, o.status, o.created_at,
-        c.name as client_name, d.name as driver_name
+        o.id, o.client_id, o.driver_id, o.pickup_address, o.dropoff_address, 
+        o.total_price, o.discount_amount, o.promo_code, o.status, o.created_at,
+        c.name as client_name, c.phone as client_phone,
+        d.name as driver_name, d.phone as driver_phone
       FROM orders o
       LEFT JOIN users c ON c.id = o.client_id
       LEFT JOIN users d ON d.id = o.driver_id
       ORDER BY o.created_at DESC
-      LIMIT 10
+      LIMIT 100
     `);
 
     return {
@@ -855,5 +857,141 @@ export class AdminService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  // ─── إدارة وتعديل الطلبات (Orders Management) ─────────────────────────────
+
+  /**
+   * جلب جميع الطلبات بالتفصيل للوحة التحكم
+   */
+  async getAllOrders() {
+    return this.db.query(`
+      SELECT 
+        o.id, o.client_id, o.driver_id, o.pickup_address, o.dropoff_address, 
+        o.total_price, o.discount_amount, o.promo_code, o.status, o.created_at,
+        c.name as client_name, c.phone as client_phone,
+        d.name as driver_name, d.phone as driver_phone
+      FROM orders o
+      LEFT JOIN users c ON c.id = o.client_id
+      LEFT JOIN users d ON d.id = o.driver_id
+      ORDER BY o.created_at DESC
+      LIMIT 100
+    `);
+  }
+
+  /**
+   * حذف طلب نهائياً من قاعدة البيانات (Supprimer commande)
+   */
+  async deleteOrder(orderId: string) {
+    const [order] = await this.db.query(
+      `SELECT id FROM orders WHERE id = $1`,
+      [orderId],
+    );
+    if (!order) {
+      throw new NotFoundException('الطلب غير موجود');
+    }
+
+    // 1. حذف التقييمات المرتبطة بهذا الطلب
+    await this.db.query(`DELETE FROM reviews WHERE order_id = $1`, [orderId]);
+
+    // 2. فك ارتباط معاملات المحفظة إن وُجدت
+    await this.db.query(`UPDATE wallet_transactions SET order_id = NULL WHERE order_id = $1`, [orderId]);
+
+    // 3. حذف الطلب
+    await this.db.query(`DELETE FROM orders WHERE id = $1`, [orderId]);
+
+    return { success: true, message: `تم حذف الطلب #${orderId.slice(0, 8)} نهائياً` };
+  }
+
+  /**
+   * تعديل سعر الطلب مباشرة (Modifier prix commande)
+   */
+  async updateOrderPrice(orderId: string, newPrice: number) {
+    if (newPrice === undefined || isNaN(newPrice) || newPrice < 0) {
+      throw new BadRequestException('يرجى إدخال مبلغ صحيح وموجب');
+    }
+
+    const [order] = await this.db.query(
+      `UPDATE orders 
+       SET total_price = $1
+       WHERE id = $2 
+       RETURNING id, total_price, status`,
+      [newPrice, orderId],
+    );
+
+    if (!order) {
+      throw new NotFoundException('الطلب غير موجود');
+    }
+
+    return {
+      success: true,
+      message: `تم تعديل سعر الطلب إلى ${newPrice} دج بنجاح`,
+      order,
+    };
+  }
+
+  /**
+   * تطبيق كود خصم أو تخفيض على الطلب (Appliquer Promo / Réduction)
+   */
+  async applyOrderPromo(orderId: string, promoCode?: string, discountAmount?: number) {
+    const [order] = await this.db.query(
+      `SELECT id, total_price, promo_code, discount_amount FROM orders WHERE id = $1`,
+      [orderId],
+    );
+
+    if (!order) {
+      throw new NotFoundException('الطلب غير موجود');
+    }
+
+    let calculatedDiscount = 0;
+    let appliedCode = promoCode?.trim()?.toUpperCase() || null;
+
+    if (appliedCode) {
+      const [promo] = await this.db.query(
+        `SELECT * FROM promo_codes WHERE code = $1 AND is_active = TRUE`,
+        [appliedCode],
+      );
+      if (!promo) {
+        throw new BadRequestException(`كود الخصم "${appliedCode}" غير موجود أو غير نشط`);
+      }
+
+      const currentTotal = parseFloat(order.total_price);
+      if (promo.discount_type === 'percentage') {
+        const pct = (currentTotal * parseFloat(promo.discount_value)) / 100;
+        const maxCap = promo.max_discount ? parseFloat(promo.max_discount) : Infinity;
+        calculatedDiscount = Math.min(pct, maxCap);
+      } else {
+        calculatedDiscount = parseFloat(promo.discount_value);
+      }
+
+      // زيادة عداد استخدام الكوبون
+      await this.db.query(
+        `UPDATE promo_codes SET used_count = used_count + 1 WHERE code = $1`,
+        [appliedCode],
+      );
+    } else if (discountAmount && discountAmount > 0) {
+      calculatedDiscount = discountAmount;
+    } else {
+      throw new BadRequestException('يرجى إدخال كود خصم أو قيمة الخصم بالدينار');
+    }
+
+    const currentPrice = parseFloat(order.total_price);
+    const newPrice = Math.max(0, currentPrice - calculatedDiscount);
+
+    const [updated] = await this.db.query(
+      `UPDATE orders 
+       SET promo_code = COALESCE($1, promo_code),
+           discount_amount = COALESCE(discount_amount, 0) + $2,
+           total_price = $3
+       WHERE id = $4 
+       RETURNING id, total_price, discount_amount, promo_code`,
+      [appliedCode, calculatedDiscount, newPrice, orderId],
+    );
+
+    return {
+      success: true,
+      message: `تم تطبيق الخصم بنجاح (-${calculatedDiscount.toFixed(2)} دج) وأصبح السعر: ${newPrice} دج`,
+      order: updated,
+    };
   }
 }

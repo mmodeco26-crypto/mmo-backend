@@ -374,7 +374,7 @@
           📑 طلبات التوثيق المعلقة KYC (<span id="count-kyc">0</span>)
         </button>
         <button onclick="switchTab('orders')" id="tab-btn-orders" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
-          📦 أحدث الطلبات المنفذة
+          📦 إدارة الطلبات (<span id="count-orders">0</span>)
         </button>
         <button onclick="switchTab('settings')" id="tab-btn-settings" class="px-6 py-4 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
           ⚙️ الأسعار والعروض والعمولة
@@ -490,24 +490,47 @@
         </table>
       </div>
 
-      <!-- محتوى التبويب: الطلبات -->
-      <div id="tab-orders" class="p-5 overflow-x-auto hidden">
-        <table class="w-full text-right text-sm">
-          <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
-            <tr>
-              <th class="p-3">رقم الطلب</th>
-              <th class="p-3">الزبون</th>
-              <th class="p-3">السائق</th>
-              <th class="p-3">مسار التوصيل</th>
-              <th class="p-3">المبلغ</th>
-              <th class="p-3">الحالة</th>
-              <th class="p-3">التوقيت</th>
-            </tr>
-          </thead>
-          <tbody id="orders-table-body" class="divide-y divide-slate-800/60">
-            <tr><td colspan="7" class="text-center p-6 text-slate-500">جاري تحميل الطلبات...</td></tr>
-          </tbody>
-        </table>
+      <!-- محتوى التبويب: الطلبات (Les Commandes) -->
+      <div id="tab-orders" class="p-5 hidden">
+        <!-- شريط إدارة ومتابعة الطلبات -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800">
+          <div>
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+              <span>📦</span> إدارة ومتابعة الطلبات (Gestion des Commandes)
+            </h3>
+            <p class="text-xs text-slate-400">تعديل سعر الطلب (Modifier prix)، تطبيق برومو وخصم (Code promo)، أو حذف الطلب نهائياً (Supprimer)</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-72">
+              <input type="text" id="search-orders" oninput="filterOrdersTable()" placeholder="🔍 بحث برقم الطلب، الزبون، أو السائق..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans">
+              <button onclick="clearOrdersSearch()" id="btn-clear-orders-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="loadDashboard()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 rounded-xl text-xs font-semibold transition">
+              <span>🔄</span> تحديث
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-right text-sm">
+            <thead class="text-xs text-slate-400 uppercase bg-slate-800/40 border-b border-slate-800">
+              <tr>
+                <th class="p-3">رقم الطلب</th>
+                <th class="p-3">الزبون</th>
+                <th class="p-3">السائق</th>
+                <th class="p-3">مسار التوصيل</th>
+                <th class="p-3">المبلغ</th>
+                <th class="p-3">الخصم / البرومو</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3">التوقيت</th>
+                <th class="p-3 text-center">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body" class="divide-y divide-slate-800/60">
+              <tr><td colspan="9" class="text-center p-6 text-slate-500">جاري تحميل الطلبات...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- محتوى التبويب: الإعدادات والتسعيرة والعروض -->
@@ -953,6 +976,102 @@
       </div>
     </div>
 
+    <!-- Modal: تعديل سعر الطلب (Modifier Prix Commande) -->
+    <div id="modal-edit-order-price" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>✏️</span> تعديل سعر الطلب (Modifier le Prix)
+          </h3>
+          <button onclick="closeEditOrderPriceModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-edit-order-price" onsubmit="submitEditOrderPrice(event)" class="p-6 space-y-4">
+          <input type="hidden" id="edit-order-id">
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-4 text-xs space-y-2">
+            <div class="flex justify-between items-center text-slate-400">
+              <span>رقم الطلب:</span>
+              <span id="edit-order-id-display" class="font-mono text-amber-400 font-bold text-sm">--</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-400">
+              <span>السعر الإجمالي الحالي:</span>
+              <span id="edit-order-current-price-display" class="font-bold text-slate-200 text-sm">-- DZD</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">السعر الجديد المطلوب (DZD) *</label>
+            <div class="relative">
+              <input type="number" step="any" min="0" id="edit-order-new-price" required placeholder="مثال: 500" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-emerald-400 font-mono placeholder-slate-500 focus:outline-none focus:border-amber-400">
+              <span class="absolute left-3 top-3.5 text-xs text-slate-400 font-mono font-bold">DZD</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">سيتم تحديث المبلغ فوراً في قاعدة البيانات وحسابات المنصة.</p>
+          </div>
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeEditOrderPriceModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-order-price" class="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5">
+              <span>💾</span> حفظ وتعديل السعر
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: تطبيق كود خصم أو تخفيض على الطلب (Appliquer Promo / Réduction) -->
+    <div id="modal-apply-order-promo" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+          <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+            <span>🏷️</span> تطبيق كود خصم أو تخفيض (Appliquer Promo)
+          </h3>
+          <button onclick="closeApplyOrderPromoModal()" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+        </div>
+        <form id="form-apply-order-promo" onsubmit="submitApplyOrderPromo(event)" class="p-6 space-y-4">
+          <input type="hidden" id="promo-order-id">
+          <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-4 text-xs space-y-2">
+            <div class="flex justify-between items-center text-slate-400">
+              <span>رقم الطلب:</span>
+              <span id="promo-order-id-display" class="font-mono text-amber-400 font-bold text-sm">--</span>
+            </div>
+            <div class="flex justify-between items-center text-slate-400">
+              <span>السعر الإجمالي الحالي:</span>
+              <span id="promo-order-current-price-display" class="font-bold text-slate-200 text-sm">-- DZD</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">الخيار 1: إدخال كود خصم ترويجي (Code Promo)</label>
+            <input type="text" id="promo-order-code" placeholder="مثال: BIENVENUE أو RAMADAN20" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-bold uppercase text-amber-400 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+            <p class="text-[11px] text-slate-400 mt-1">يتم احتساب الخصم تلقائياً حسب قيمة ونسبة الكود المدخل.</p>
+          </div>
+
+          <div class="relative flex py-1 items-center">
+            <div class="flex-grow border-t border-slate-800"></div>
+            <span class="flex-shrink mx-3 text-[11px] text-slate-500 font-bold">أو تخفيض يدوي</span>
+            <div class="flex-grow border-t border-slate-800"></div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">الخيار 2: مبلغ تخفيض مباشر (DZD)</label>
+            <div class="relative">
+              <input type="number" step="any" min="0" id="promo-order-discount" placeholder="مثال: 100 DZD" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-emerald-400 placeholder-slate-500 focus:outline-none focus:border-amber-400">
+              <span class="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">DZD</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">سيتم خصم هذا المبلغ مباشرة من إجمالي الطلب.</p>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button type="button" onclick="closeApplyOrderPromoModal()" class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition">
+              إلغاء
+            </button>
+            <button type="submit" id="btn-submit-order-promo" class="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
+              <span>🏷️</span> تطبيق الخصم
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- محتوى التبويب: المالية والمحافظ -->
     <div id="tab-finances" class="p-5 hidden">
       <!-- شريط الإحصائيات المالية المتقدمة -->
@@ -1217,6 +1336,7 @@
     let currentMapStyle = 'dark';
     let allDrivers = [];
     let allClients = [];
+    let allOrders = [];
 
     // 🎨 نظام التنبيهات والتأكيدات الرسومية التكتيكية وسط الشاشة (Custom Tactical Dialog System)
     let appAlertCallback = null;
@@ -1645,6 +1765,17 @@
         }
       } catch (err) {
         console.error('خطأ في جلب الإحصائيات:', err);
+      }
+
+      // جـ. جلب قائمة جميع الطلبات المنفذة (Les Commandes)
+      try {
+        const ordersRes = await fetch(`${API_BASE}/admin/orders`, { headers }).then(r => r.json());
+        const orders = ordersRes.data || ordersRes;
+        if (Array.isArray(orders)) {
+          renderRecentOrders(orders);
+        }
+      } catch (err) {
+        console.error('خطأ في جلب الطلبات:', err);
       }
 
       // ب. جلب قائمة السائقين (Chwafra)
@@ -2269,25 +2400,258 @@
       }
     }
 
-    // جدول أحدث الطلبات المنفذة
+    // ─── جدول وإدارة الطلبات (Orders Management) ──────────────────────────────
     function renderRecentOrders(orders) {
+      allOrders = orders || [];
+      if (document.getElementById('count-orders')) {
+        document.getElementById('count-orders').innerText = allOrders.length;
+      }
+      const query = (document.getElementById('search-orders')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterOrdersTable();
+      } else {
+        displayOrdersRows(allOrders);
+      }
+    }
+
+    function displayOrdersRows(orders) {
       const tbody = document.getElementById('orders-table-body');
       if (!tbody) return;
-      if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-500">لا توجد أي طلبات منفذة بعد.</td></tr>`;
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-500">لا توجد أي طلبات مطابقة.</td></tr>`;
         return;
       }
-      tbody.innerHTML = orders.map(o => `
-        <tr class="hover:bg-slate-800/40 transition">
-          <td class="p-3 font-mono text-amber-400 text-xs">#${o.id.slice(0, 8)}</td>
-          <td class="p-3">${o.client_name || 'عميل'}</td>
-          <td class="p-3">${o.driver_name || '<span class="text-slate-500">لم يقبل بعد</span>'}</td>
-          <td class="p-3 text-xs text-slate-300">${o.pickup_address} ➡️ ${o.dropoff_address}</td>
-          <td class="p-3 font-bold text-emerald-400">${o.total_price} DZD</td>
-          <td class="p-3"><span class="px-2 py-0.5 rounded text-xs bg-slate-700 text-slate-300 font-medium">${o.status}</span></td>
-          <td class="p-3 text-xs text-slate-500">${new Date(o.created_at).toLocaleTimeString('ar-DZ')}</td>
-        </tr>
-      `).join('');
+
+      const statusMap = {
+        'delivered': { label: 'مكتمل ✅', class: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' },
+        'pending': { label: 'معلق ⏳', class: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' },
+        'accepted': { label: 'مقبول 🏍️', class: 'bg-blue-500/20 text-blue-400 border border-blue-500/30' },
+        'in_transit': { label: 'في الطريق 🚀', class: 'bg-purple-500/20 text-purple-400 border border-purple-500/30' },
+        'picked_up': { label: 'تم الاستلام 📦', class: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' },
+        'cancelled': { label: 'ملغى ❌', class: 'bg-red-500/20 text-red-400 border border-red-500/30' },
+      };
+
+      tbody.innerHTML = orders.map(o => {
+        const statusMeta = statusMap[o.status] || { label: o.status, class: 'bg-slate-700 text-slate-300' };
+        const price = parseFloat(o.total_price) || 0;
+        const discount = parseFloat(o.discount_amount) || 0;
+        const promoBadge = o.promo_code 
+          ? `<span class="px-2 py-0.5 rounded text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono font-bold">🎟️ ${o.promo_code} (-${discount.toFixed(0)} دج)</span>`
+          : (discount > 0 
+              ? `<span class="px-2 py-0.5 rounded text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono">-${discount.toFixed(0)} دج</span>` 
+              : `<span class="text-slate-500 text-xs">-</span>`);
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="p-3 font-mono text-amber-400 text-xs font-bold whitespace-nowrap">#${o.id.slice(0, 8)}</td>
+            <td class="p-3">
+              <div class="font-semibold text-slate-100">${o.client_name || 'عميل'}</div>
+              ${o.client_phone ? `<div class="text-[11px] text-slate-400 font-mono">${o.client_phone}</div>` : ''}
+            </td>
+            <td class="p-3">
+              ${o.driver_name 
+                ? `<div><div class="font-semibold text-slate-200">${o.driver_name}</div>${o.driver_phone ? `<div class="text-[11px] text-slate-400 font-mono">${o.driver_phone}</div>` : ''}</div>` 
+                : `<span class="text-slate-500 text-xs italic">لم يقبل بعد</span>`}
+            </td>
+            <td class="p-3 text-xs text-slate-300 max-w-xs" title="${o.pickup_address} ➡️ ${o.dropoff_address}">
+              <div class="truncate"><span class="text-slate-400">${o.pickup_address}</span> <span class="text-amber-400">➡️</span> <span class="text-slate-200">${o.dropoff_address}</span></div>
+            </td>
+            <td class="p-3 whitespace-nowrap">
+              <div class="font-bold text-emerald-400 font-mono text-sm">${price.toFixed(2)} DZD</div>
+            </td>
+            <td class="p-3 whitespace-nowrap">${promoBadge}</td>
+            <td class="p-3 whitespace-nowrap">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusMeta.class}">${statusMeta.label}</span>
+            </td>
+            <td class="p-3 text-xs text-slate-400 whitespace-nowrap">
+              ${new Date(o.created_at).toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' })}<br>
+              <span class="text-[10px] text-slate-500">${new Date(o.created_at).toLocaleDateString('ar-DZ')}</span>
+            </td>
+            <td class="p-3 text-center whitespace-nowrap">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="openEditOrderPriceModal('${o.id}', ${price})" title="تعديل السعر (Modifier prix)" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>✏️</span> تعديل السعر
+                </button>
+                <button onclick="openApplyOrderPromoModal('${o.id}', ${price})" title="تطبيق كود خصم (Appliquer Promo)" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>🏷️</span> برومو
+                </button>
+                <button onclick="deleteOrder('${o.id}')" title="حذف الطلب نهائياً (Supprimer)" class="px-2.5 py-1 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 text-xs font-semibold transition flex items-center gap-1">
+                  <span>🗑️</span> حذف
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // بحث وتصفية جدول الطلبات
+    function filterOrdersTable() {
+      const query = (document.getElementById('search-orders')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-orders-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', query.length === 0);
+      }
+
+      if (!query) {
+        displayOrdersRows(allOrders);
+        return;
+      }
+
+      const filtered = allOrders.filter(o => {
+        const idMatch = (o.id || '').toLowerCase().includes(query);
+        const clientMatch = (o.client_name || '').toLowerCase().includes(query) || (o.client_phone || '').includes(query);
+        const driverMatch = (o.driver_name || '').toLowerCase().includes(query) || (o.driver_phone || '').includes(query);
+        const addressMatch = (o.pickup_address || '').toLowerCase().includes(query) || (o.dropoff_address || '').toLowerCase().includes(query);
+        const promoMatch = (o.promo_code || '').toLowerCase().includes(query);
+        return idMatch || clientMatch || driverMatch || addressMatch || promoMatch;
+      });
+
+      displayOrdersRows(filtered);
+    }
+
+    function clearOrdersSearch() {
+      const input = document.getElementById('search-orders');
+      if (input) input.value = '';
+      filterOrdersTable();
+    }
+
+    // Modal تعديل السعر
+    function openEditOrderPriceModal(orderId, currentPrice) {
+      document.getElementById('edit-order-id').value = orderId;
+      document.getElementById('edit-order-id-display').innerText = '#' + orderId.slice(0, 8);
+      document.getElementById('edit-order-current-price-display').innerText = parseFloat(currentPrice).toFixed(2) + ' DZD';
+      document.getElementById('edit-order-new-price').value = currentPrice;
+      document.getElementById('modal-edit-order-price').classList.remove('hidden');
+    }
+    function closeEditOrderPriceModal() {
+      document.getElementById('modal-edit-order-price').classList.add('hidden');
+    }
+
+    async function submitEditOrderPrice(e) {
+      e.preventDefault();
+      const orderId = document.getElementById('edit-order-id').value;
+      const newPrice = parseFloat(document.getElementById('edit-order-new-price').value);
+      if (isNaN(newPrice) || newPrice < 0) {
+        showAppAlert('يرجى إدخال مبلغ صحيح وموجب', 'قيمة غير صالحة', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-order-price');
+      btn.disabled = true;
+      btn.innerText = 'جاري التعديل...';
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}/price`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ price: newPrice })
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشل تعديل السعر', 'خطأ', 'error');
+        } else {
+          showAppAlert(res.message || `تم تعديل سعر الطلب إلى ${newPrice} DZD بنجاح ✅`, 'تم بنجاح', 'success');
+          closeEditOrderPriceModal();
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>💾</span> حفظ وتعديل السعر';
+      }
+    }
+
+    // Modal تطبيق كود الخصم
+    function openApplyOrderPromoModal(orderId, currentPrice) {
+      document.getElementById('promo-order-id').value = orderId;
+      document.getElementById('promo-order-id-display').innerText = '#' + orderId.slice(0, 8);
+      document.getElementById('promo-order-current-price-display').innerText = parseFloat(currentPrice).toFixed(2) + ' DZD';
+      document.getElementById('promo-order-code').value = '';
+      document.getElementById('promo-order-discount').value = '';
+      document.getElementById('modal-apply-order-promo').classList.remove('hidden');
+    }
+    function closeApplyOrderPromoModal() {
+      document.getElementById('modal-apply-order-promo').classList.add('hidden');
+    }
+
+    async function submitApplyOrderPromo(e) {
+      e.preventDefault();
+      const orderId = document.getElementById('promo-order-id').value;
+      const promoCode = document.getElementById('promo-order-code').value.trim();
+      const discountVal = parseFloat(document.getElementById('promo-order-discount').value);
+
+      if (!promoCode && (isNaN(discountVal) || discountVal <= 0)) {
+        showAppAlert('يرجى إدخال كود خصم أو قيمة التخفيض بالدينار', 'بيانات ناقصة', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-order-promo');
+      btn.disabled = true;
+      btn.innerText = 'جاري التطبيق...';
+
+      const payload = {};
+      if (promoCode) payload.promo_code = promoCode;
+      if (!isNaN(discountVal) && discountVal > 0) payload.discount_amount = discountVal;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}/promo`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشل تطبيق الخصم', 'خطأ', 'error');
+        } else {
+          showAppAlert(res.message || 'تم تطبيق الخصم على الطلب بنجاح 🏷️', 'تم تطبيق الخصم', 'success');
+          closeApplyOrderPromoModal();
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ أثناء الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🏷️</span> تطبيق الخصم';
+      }
+    }
+
+    // حذف طلب نهائياً (Supprimer commande)
+    async function deleteOrder(orderId) {
+      const ok = await showAppConfirm({
+        title: 'حذف الطلب نهائياً 🗑️',
+        message: `هل أنت متأكد من حذف الطلب #${orderId.slice(0, 8)} نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذه العملية.`,
+        icon: '🗑️',
+        confirmText: 'نعم، حذف الطلب',
+        cancelText: 'إلغاء',
+        type: 'danger'
+      });
+      if (!ok) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/orders/${orderId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          showAppAlert(res.message || 'فشلت عملية حذف الطلب', 'خطأ أثناء الحذف', 'error');
+        } else {
+          showAppAlert(res.message || `تم حذف الطلب #${orderId.slice(0, 8)} بنجاح 🗑️`, 'تم الحذف بنجاح', 'success');
+          loadDashboard();
+        }
+      } catch (err) {
+        showAppAlert('حدث خطأ في الاتصال بالسيرفر', 'خطأ في الاتصال', 'error');
+      }
     }
 
     // جدول الزبائن والعملاء (Les Clients - Ajouter, Bloquer, Supprimer, Recherche)

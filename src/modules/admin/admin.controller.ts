@@ -131,6 +131,54 @@ export class AdminController {
     return this.adminService.deleteClient(id);
   }
 
+  @ApiOperation({ summary: 'قائمة جميع الطلبات بالتفصيل مع التخفيضات والتحكم' })
+  @Get('orders')
+  getAllOrders() {
+    return this.adminService.getAllOrders();
+  }
+
+  @ApiOperation({ summary: 'حذف طلب نهائياً من النظام (Supprimer Commande)' })
+  @Delete('orders/:id')
+  deleteOrder(@Param('id') id: string) {
+    return this.adminService.deleteOrder(id);
+  }
+
+  @ApiOperation({ summary: 'تعديل سعر الطلب مباشرة من لوحة التحكم (Modifier Prix Commande)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        price: { type: 'number', example: 500, description: 'السعر الجديد للطلب بالدينار DZD' },
+      },
+      required: ['price'],
+    },
+  })
+  @Patch('orders/:id/price')
+  updateOrderPrice(
+    @Param('id') id: string,
+    @Body() body: { price: number },
+  ) {
+    return this.adminService.updateOrderPrice(id, body.price);
+  }
+
+  @ApiOperation({ summary: 'تطبيق كود خصم أو تخفيض على الطلب (Appliquer Promo / Réduction)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        promo_code: { type: 'string', example: 'BIENVENUE', description: 'كود الخصم إن وجد' },
+        discount_amount: { type: 'number', example: 100, description: 'قيمة التخفيض المباشر بالدينار DZD' },
+      },
+    },
+  })
+  @Post('orders/:id/promo')
+  applyOrderPromo(
+    @Param('id') id: string,
+    @Body() body: { promo_code?: string; discount_amount?: number },
+  ) {
+    return this.adminService.applyOrderPromo(id, body.promo_code, body.discount_amount);
+  }
+
   @ApiOperation({ summary: 'جلب إعدادات المنصة الحالية (الأسعار، عمولة التطبيق، سقف الديون)' })
   @Get('settings')
   getSettings() {
