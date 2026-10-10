@@ -886,6 +886,15 @@ function App() {
     open: false,
     driver: null
   });
+  const [modalConfirmDelete, setModalConfirmDelete] = useState({
+    open: false,
+    title: '',
+    itemName: '',
+    itemType: '',
+    itemIcon: '🗑️',
+    description: '',
+    onConfirm: null
+  });
 
   // Save to localStorage on changes
   useEffect(() => {
@@ -1134,11 +1143,75 @@ function App() {
     }));
   };
 
+  // Custom High-Quality Confirmation Modal Trigger
+  const requestDeleteConfirmation = ({ title, itemName, itemType, itemIcon, description, onConfirm }) => {
+    setModalConfirmDelete({
+      open: true,
+      title: title || 'تأكيد الحذف نهائياً',
+      itemName: itemName || '',
+      itemType: itemType || '',
+      itemIcon: itemIcon || '🗑️',
+      description: description || 'هل أنت متأكد من تنفيذ هذا الإجراء؟ لا يمكن التراجع عنه لاحقاً.',
+      onConfirm
+    });
+  };
+
+  // Handle agent deletion
+  const handleDeleteAgent = ag => {
+    requestDeleteConfirmation({
+      title: 'حذف حساب الوكيل',
+      itemName: ag.name,
+      itemIcon: '🛡️',
+      itemType: 'وكيل عمليات',
+      description: `هل أنت متأكد من حذف حساب الوكيل "${ag.name}" (${ag.role === 'admin' ? 'مدير عام' : 'وكيل عمليات'})؟ سيتم إلغاء صلاحياته والوصول إلى لوحة التحكم فوراً.`,
+      onConfirm: () => {
+        setAgents(curr => curr.filter(x => x.id !== ag.id));
+      }
+    });
+  };
+
+  // Handle driver deletion
+  const handleDeleteDriver = d => {
+    requestDeleteConfirmation({
+      title: 'حذف السائق من الأسطول',
+      itemName: `${d.name} (${d.vehicle_model})`,
+      itemIcon: '🛵',
+      itemType: 'سائق دليفري',
+      description: `هل أنت متأكد من حذف السائق "${d.name}" ذو اللوحة [${d.vehicle_plate}] نهائياً من المنصة وسجل الأسطول؟`,
+      onConfirm: () => {
+        setDrivers(curr => curr.filter(x => x.id !== d.id));
+      }
+    });
+  };
+
+  // Handle client deletion
+  const handleDeleteClient = c => {
+    requestDeleteConfirmation({
+      title: 'حذف حساب الزبون',
+      itemName: `${c.name} (${c.phone})`,
+      itemIcon: '👥',
+      itemType: 'زبون / عميل',
+      description: `هل أنت متأكد من حذف حساب الزبون "${c.name}" نهائياً من سجل العملاء؟`,
+      onConfirm: () => {
+        setClients(curr => curr.filter(x => x.id !== c.id));
+      }
+    });
+  };
+
   // Handle order deletion
   const handleDeleteOrder = orderId => {
-    if (confirm(`هل أنت متأكد من حذف الطلب #${orderId.slice(0, 8)} نهائياً من النظام؟`)) {
-      setOrders(curr => curr.filter(o => o.id !== orderId));
-    }
+    const o = orders.find(x => x.id === orderId);
+    const orderCode = orderId.slice(0, 8);
+    requestDeleteConfirmation({
+      title: 'حذف الطلب نهائياً',
+      itemName: `الطلب #${orderCode}${o ? ' — ' + o.customer_name : ''}`,
+      itemIcon: '📦',
+      itemType: 'طلب توصيل',
+      description: 'هل أنت متأكد من حذف هذا الطلب نهائياً من سجل الطلبات والتقارير المالية للمنصة؟',
+      onConfirm: () => {
+        setOrders(curr => curr.filter(o => o.id !== orderId));
+      }
+    });
   };
 
   // Save edited price
@@ -1350,6 +1423,9 @@ function App() {
     setMapTheme: setMapTheme,
     handleStepOrderStatus: handleStepOrderStatus,
     handleDeleteOrder: handleDeleteOrder,
+    handleDeleteDriver: handleDeleteDriver,
+    handleDeleteClient: handleDeleteClient,
+    handleDeleteAgent: handleDeleteAgent,
     openEditPriceModal: (orderId, currentPrice) => setModalEditPrice({
       open: true,
       orderId,
@@ -1892,7 +1968,58 @@ function App() {
       }
     },
     className: "px-5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-black shadow-lg shadow-indigo-500/20"
-  }, "\u062D\u0641\u0638 \u0648\u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0648\u0643\u064A\u0644 \u2705")))));
+  }, "\u062D\u0641\u0638 \u0648\u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0648\u0643\u064A\u0644 \u2705")))), modalConfirmDelete.open && /*#__PURE__*/React.createElement("div", {
+    className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition-all duration-200",
+    onClick: () => setModalConfirmDelete(prev => ({
+      ...prev,
+      open: false
+    }))
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "relative w-full max-w-md glass-card rounded-3xl border border-rose-500/35 bg-slate-900/95 p-6 sm:p-7 text-center shadow-2xl shadow-rose-950/60 overflow-hidden transform transition-all duration-200",
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "absolute -top-20 -left-20 w-44 h-44 bg-rose-500/15 rounded-full blur-3xl pointer-events-none"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "absolute -bottom-20 -right-20 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModalConfirmDelete(prev => ({
+      ...prev,
+      open: false
+    })),
+    className: "absolute top-4 left-4 p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition text-sm font-bold leading-none",
+    title: "\u0625\u063A\u0644\u0627\u0642"
+  }, "\u2715"), /*#__PURE__*/React.createElement("div", {
+    className: "relative mx-auto mb-4 w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-400 flex items-center justify-center text-3xl shadow-lg shadow-rose-500/25"
+  }, /*#__PURE__*/React.createElement("span", null, modalConfirmDelete.itemIcon || "\uD83D\uDDD1\uFE0F")), /*#__PURE__*/React.createElement("h3", {
+    className: "text-lg font-black text-slate-100 mb-1"
+  }, modalConfirmDelete.title || "\u062A\u0623\u0643\u064A\u062F \u0627\u0644\u062D\u0630\u0641 \u0646\u0647\u0627\u0626\u064A\u0627\u064B"), /*#__PURE__*/React.createElement("div", {
+    className: "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[11px] font-bold mb-3"
+  }, /*#__PURE__*/React.createElement("span", null, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("span", null, "\u0625\u062C\u0631\u0627\u0621 \u062D\u0633\u0627\u0633 \u0644\u0627 \u0631\u062C\u0639\u0629 \u0641\u064A\u0647")), modalConfirmDelete.itemName && /*#__PURE__*/React.createElement("div", {
+    className: "my-3 py-2.5 px-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/90 text-sm font-bold text-amber-300 font-mono shadow-inner flex items-center justify-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", null, "\u00AB"), /*#__PURE__*/React.createElement("span", {
+    className: "truncate max-w-[280px]"
+  }, modalConfirmDelete.itemName), /*#__PURE__*/React.createElement("span", null, "\u00BB")), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-slate-400 leading-relaxed mb-6 px-2"
+  }, modalConfirmDelete.description), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      if (modalConfirmDelete.onConfirm) {
+        modalConfirmDelete.onConfirm();
+      }
+      setModalConfirmDelete(prev => ({
+        ...prev,
+        open: false
+      }));
+    },
+    className: "flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-rose-600 hover:from-rose-500 hover:to-rose-400 text-white font-black text-xs transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 active:scale-95"
+  }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDDD1\uFE0F \u0646\u0639\u0645\u060C \u062A\u0623\u0643\u064A\u062F \u0627\u0644\u062D\u0630\u0641")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModalConfirmDelete(prev => ({
+      ...prev,
+      open: false
+    })),
+    className: "flex-1 py-3 px-4 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs border border-slate-700 transition active:scale-95"
+  }, "\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0623\u0645\u0631")))));
 }
 
 // =========================================================================
@@ -1925,6 +2052,9 @@ function AdminDashboardView({
   setMapTheme,
   handleStepOrderStatus,
   handleDeleteOrder,
+  handleDeleteDriver,
+  handleDeleteClient,
+  handleDeleteAgent,
   openEditPriceModal,
   openApplyPromoModal,
   openInspectKYCModal,
@@ -2304,11 +2434,7 @@ function AdminDashboardView({
     },
     className: "px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold transition"
   }, d.is_online ? 'إيقاف ⏸️' : 'تفعيل 🟢'), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (confirm(`حذف السائق "${d.name}" نهائياً من المنصة؟`)) {
-        setDrivers(curr => curr.filter(x => x.id !== d.id));
-      }
-    },
+    onClick: () => handleDeleteDriver(d),
     className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
     title: "\u062D\u0630\u0641 \u0627\u0644\u0633\u0627\u0626\u0642"
   }, /*#__PURE__*/React.createElement(Icons.Trash2, {
@@ -2374,12 +2500,9 @@ function AdminDashboardView({
     },
     className: "px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-xs transition"
   }, c.is_active ? 'حظر 🚫' : 'تنشيط 🔓'), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (confirm(`حذف الزبون "${c.name}" نهائياً من المنصة؟`)) {
-        setClients(curr => curr.filter(x => x.id !== c.id));
-      }
-    },
-    className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition"
+    onClick: () => handleDeleteClient(c),
+    className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
+    title: "حذف الزبون"
   }, /*#__PURE__*/React.createElement(Icons.Trash2, {
     size: 14
   })))))))))), adminTab === 'kyc' && /*#__PURE__*/React.createElement("div", {
@@ -2684,12 +2807,9 @@ function AdminDashboardView({
   }, "\u0646\u0634\u0637 \u2705")), /*#__PURE__*/React.createElement("td", {
     className: "p-3 text-center"
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      if (confirm(`حذف حساب الوكيل "${ag.name}"؟`)) {
-        setAgents(curr => curr.filter(x => x.id !== ag.id));
-      }
-    },
-    className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition"
+    onClick: () => handleDeleteAgent(ag),
+    className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
+    title: "حذف حساب الوكيل"
   }, /*#__PURE__*/React.createElement(Icons.Trash2, {
     size: 14
   })))))))))));
