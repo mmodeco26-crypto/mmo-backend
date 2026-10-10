@@ -105,6 +105,12 @@ export class AdminController {
     return this.adminService.getAllDrivers();
   }
 
+  @ApiOperation({ summary: 'حذف سائق نهائياً من المنصة (Supprimer Livreur)' })
+  @Delete('drivers/:id')
+  deleteDriver(@Param('id') id: string) {
+    return this.adminService.deleteDriver(id);
+  }
+
   @ApiOperation({ summary: 'قائمة جميع الزبائن (Clients) مع سجل طلباتهم وإنفاقهم' })
   @Get('clients')
   getAllClients() {
@@ -117,6 +123,12 @@ export class AdminController {
     @Body() body: { name: string; phone: string; password?: string; email?: string },
   ) {
     return this.adminService.createClient(body);
+  }
+
+  @ApiOperation({ summary: 'حذف زبون نهائياً من المنصة (Supprimer Client)' })
+  @Delete('clients/:id')
+  deleteClient(@Param('id') id: string) {
+    return this.adminService.deleteClient(id);
   }
 
   @ApiOperation({ summary: 'جلب إعدادات المنصة الحالية (الأسعار، عمولة التطبيق، سقف الديون)' })

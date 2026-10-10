@@ -719,4 +719,141 @@ export class AdminService {
       await queryRunner.release();
     }
   }
+
+  /**
+   * حذف سائق نهائياً من المنصة (Supprimer Livreur)
+   */
+  async deleteDriver(driverIdentifier: string) {
+    const [driver] = await this.db.query(
+      `SELECT d.id as driver_id, d.user_id, u.name 
+       FROM drivers d 
+       JOIN users u ON u.id = d.user_id 
+       WHERE d.id = $1 OR d.user_id = $1`,
+      [driverIdentifier],
+    );
+
+    if (!driver) {
+      throw new NotFoundException('السائق غير موجود');
+    }
+
+    const queryRunner = this.db.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. فك ارتباط السائق من الطلبات المكتملة أو السابقة
+      await queryRunner.query(
+        `UPDATE orders SET driver_id = NULL WHERE driver_id = $1`,
+        [driver.user_id],
+      );
+
+      // في حال كان للمستخدم طلبات كزبون
+      await queryRunner.query(
+        `DELETE FROM orders WHERE client_id = $1`,
+        [driver.user_id],
+      );
+
+      // 2. حذف حركات المحفظة إن وجدت
+      await queryRunner.query(
+        `DELETE FROM wallet_transactions WHERE wallet_id IN (SELECT id FROM wallets WHERE user_id = $1)`,
+        [driver.user_id],
+      );
+
+      // 3. حذف التقييمات
+      await queryRunner.query(
+        `DELETE FROM reviews WHERE reviewer_id = $1 OR reviewee_id = $1`,
+        [driver.user_id],
+      );
+
+      // 4. حذف السائق
+      await queryRunner.query(
+        `DELETE FROM drivers WHERE user_id = $1`,
+        [driver.user_id],
+      );
+
+      // 5. حذف المحفظة
+      await queryRunner.query(
+        `DELETE FROM wallets WHERE user_id = $1`,
+        [driver.user_id],
+      );
+
+      // 6. حذف حساب المستخدم
+      await queryRunner.query(
+        `DELETE FROM users WHERE id = $1`,
+        [driver.user_id],
+      );
+
+      await queryRunner.commitTransaction();
+      return { message: `تم حذف السائق "${driver.name}" نهائياً من المنصة` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  /**
+   * حذف زبون نهائياً من المنصة (Supprimer Client)
+   */
+  async deleteClient(clientId: string) {
+    const [client] = await this.db.query(
+      `SELECT id, name FROM users WHERE id = $1 AND role = 'client'`,
+      [clientId],
+    );
+
+    if (!client) {
+      throw new NotFoundException('الزبون غير موجود');
+    }
+
+    const queryRunner = this.db.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. حذف التقييمات المرتبطة به
+      await queryRunner.query(
+        `DELETE FROM reviews WHERE reviewer_id = $1 OR reviewee_id = $1`,
+        [clientId],
+      );
+
+      // 2. فك ارتباط أو حذف حركات المحافظ المرتبطة بطلبات الزبون
+      await queryRunner.query(
+        `UPDATE wallet_transactions SET order_id = NULL WHERE order_id IN (SELECT id FROM orders WHERE client_id = $1)`,
+        [clientId],
+      );
+
+      // 3. حذف طلبات الزبون
+      await queryRunner.query(
+        `DELETE FROM orders WHERE client_id = $1`,
+        [clientId],
+      );
+
+      // 4. حذف حركات محفظة الزبون
+      await queryRunner.query(
+        `DELETE FROM wallet_transactions WHERE wallet_id IN (SELECT id FROM wallets WHERE user_id = $1)`,
+        [clientId],
+      );
+
+      // 5. حذف المحفظة إن وجدت
+      await queryRunner.query(
+        `DELETE FROM wallets WHERE user_id = $1`,
+        [clientId],
+      );
+
+      // 6. حذف حساب المستخدم
+      await queryRunner.query(
+        `DELETE FROM users WHERE id = $1`,
+        [clientId],
+      );
+
+      await queryRunner.commitTransaction();
+      return { message: `تم حذف الزبون "${client.name}" نهائياً من المنصة` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }

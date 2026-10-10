@@ -391,11 +391,17 @@
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
               <span>🛵</span> أسطول الدراجات النارية والتحكم
             </h3>
-            <p class="text-xs text-slate-400">إضافة دراجين جدد، حظر الحسابات (Block)، أو التجميد المؤقت للعمل (Suspend)</p>
+            <p class="text-xs text-slate-400">إضافة دراجين جدد، حظر الحسابات (Block)، التجميد المؤقت (Suspend)، أو حذف السائق (Supprimer)</p>
           </div>
-          <button onclick="openAddDriverModal()" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-sm">
-            <span>➕</span> إضافة سائق جديد (Ajouter Livreur)
-          </button>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+              <input type="text" id="search-drivers" oninput="filterDriversTable()" placeholder="🔍 بحث بالاسم، الهاتف، أو اللوحة..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 transition font-sans">
+              <button onclick="clearDriversSearch()" id="btn-clear-drivers-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="openAddDriverModal()" class="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 text-xs whitespace-nowrap">
+              <span>➕</span> إضافة سائق (Ajouter Livreur)
+            </button>
+          </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -428,11 +434,17 @@
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
               <span>👥</span> قائمة الزبائن والعملاء (Les Clients)
             </h3>
-            <p class="text-xs text-slate-400">متابعة سجل طلبات الزبائن، إجمالي مصاريفهم، وإمكانية حظر الحسابات المسيئة</p>
+            <p class="text-xs text-slate-400">متابعة سجل طلبات الزبائن، إجمالي مصاريفهم، حظر الحسابات، أو حذف الزبون (Supprimer)</p>
           </div>
-          <button onclick="openAddClientModal()" class="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-sky-500/20 transition transform active:scale-95 text-sm">
-            <span>➕</span> إضافة زبون جديد (Ajouter Client)
-          </button>
+          <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+              <input type="text" id="search-clients" oninput="filterClientsTable()" placeholder="🔍 بحث باسم الزبون أو الهاتف..." class="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pr-3 pl-8 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400 transition font-sans">
+              <button onclick="clearClientsSearch()" id="btn-clear-clients-search" class="hidden absolute left-2.5 top-2 text-xs text-slate-400 hover:text-slate-200">✕</button>
+            </div>
+            <button onclick="openAddClientModal()" class="flex items-center gap-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-slate-950 font-bold px-4 py-2 rounded-xl shadow-lg shadow-sky-500/20 transition transform active:scale-95 text-xs whitespace-nowrap">
+              <span>➕</span> إضافة زبون (Ajouter Client)
+            </button>
+          </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -1138,6 +1150,8 @@
     let driverMarkers = [];
     let currentMapTileLayers = [];
     let currentMapStyle = 'dark';
+    let allDrivers = [];
+    let allClients = [];
 
     // مزودات خرائط رسمية ومجانية 100% بدون أي حظر وبدون أي علامة مائية (Esri Global CDN)
     const MAP_PROVIDERS = {
@@ -1619,16 +1633,55 @@
       }
     }
 
-    // جدول السائقين والتحكم الكامل (Ajouter, Bloquer, Suspendre)
+    // جدول السائقين والتحكم الكامل (Ajouter, Bloquer, Suspendre, Supprimer, Recherche)
     function renderDriversTable(drivers) {
+      allDrivers = drivers || [];
+      const query = (document.getElementById('search-drivers')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterDriversTable();
+      } else {
+        displayDriversRows(allDrivers);
+      }
+    }
+
+    function filterDriversTable() {
+      const query = (document.getElementById('search-drivers')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-drivers-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !query);
+      }
+
+      if (!query) {
+        displayDriversRows(allDrivers);
+        return;
+      }
+
+      const filtered = allDrivers.filter(d => {
+        const name = (d.name || '').toLowerCase();
+        const phone = (d.phone || '').toLowerCase();
+        const plate = (d.vehicle_plate || '').toLowerCase();
+        return name.includes(query) || phone.includes(query) || plate.includes(query);
+      });
+
+      displayDriversRows(filtered);
+    }
+
+    function clearDriversSearch() {
+      const input = document.getElementById('search-drivers');
+      if (input) input.value = '';
+      filterDriversTable();
+    }
+
+    function displayDriversRows(drivers) {
       const tbody = document.getElementById('drivers-table-body');
-      if (drivers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-500">لا يوجد أي سائق مسجل حالياً.</td></tr>`;
+      if (!tbody) return;
+      if (!drivers || drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center p-6 text-slate-500">لا يوجد أي نتائج مطابقة للبحث 🔍</td></tr>`;
         return;
       }
 
       tbody.innerHTML = drivers.map(d => {
-        const debt = parseFloat(d.wallet_balance);
+        const debt = parseFloat(d.wallet_balance || 0);
         const debtClass = debt < 0 ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold';
 
         // 1. شارة حالة الحساب (نشط / محظور)
@@ -1652,18 +1705,25 @@
           ? `<button onclick="toggleSuspendDriver('${d.driver_id}', false)" title="إلغاء التجميد وتمكين السائق من العمل" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/40 transition">
                إلغاء التجميد ▶️
              </button>`
-          : `<button onclick="openSuspendModal('${d.driver_id}', '${d.name}')" title="تجميد مؤقت عن استقبال الطلبات" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition">
+          : `<button onclick="openSuspendModal('${d.driver_id}', '${(d.name || '').replace(/'/g, "\\'")}')" title="تجميد مؤقت عن استقبال الطلبات" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition">
                تجميد مؤقت ⏸️
              </button>`;
 
         // 4. زر الحظر الكلي (Bloquer) / رفع الحظر (Débloquer)
         const blockActionBtn = d.is_active
           ? `<button onclick="toggleBlockUser('${d.user_id}', false)" title="حظر الحساب كلياً من تسجيل الدخول" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">
-               حظر (Block) 🚫
+               حظر 🚫
              </button>`
           : `<button onclick="toggleBlockUser('${d.user_id}', true)" title="رفع الحظر والسماح بالدخول" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">
                رفع الحظر 🔓
              </button>`;
+
+        // 5. زر الحذف النهائي (Supprimer Chiffour)
+        const deleteActionBtn = `
+          <button onclick="deleteDriver('${d.driver_id}', '${(d.name || '').replace(/'/g, "\\'")}')" title="حذف السائق نهائياً من المنصة" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1">
+            <span>🗑️</span> حذف
+          </button>
+        `;
 
         return `
           <tr class="hover:bg-slate-800/40 transition">
@@ -1680,14 +1740,41 @@
             <td class="p-3">${workBadge}</td>
             <td class="p-3 text-xs ${debtClass}">${d.wallet_balance} DZD</td>
             <td class="p-3 text-center">
-              <div class="flex items-center justify-center gap-1.5">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
                 ${suspendActionBtn}
                 ${blockActionBtn}
+                ${deleteActionBtn}
               </div>
             </td>
           </tr>
         `;
       }).join('');
+    }
+
+    // حذف سائق نهائياً (Supprimer Livreur)
+    async function deleteDriver(driverId, driverName) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف السائق "${driverName}" نهائياً من المنصة؟\n\n- سيتم إزالة حسابه ومحفظته بشكل آمن.\n- ستبقى الطلبات التاريخية محفوظة بالأرشيف المالي.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/drivers/${driverId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ أثناء الحذف: ' + (res.message || 'فشلت العملية'));
+        } else {
+          alert('🗑️ ' + (res.message || 'تم حذف السائق بنجاح'));
+          loadDashboard();
+          if (typeof loadFinances === 'function') loadFinances();
+        }
+      } catch (err) {
+        alert('حدث خطأ في الاتصال بالسيرفر');
+      }
     }
 
     // Modal إضافة سائق
@@ -1968,11 +2055,50 @@
       `).join('');
     }
 
-    // جدول الزبائن والعملاء (Les Clients)
+    // جدول الزبائن والعملاء (Les Clients - Ajouter, Bloquer, Supprimer, Recherche)
     function renderClientsTable(clients) {
+      allClients = clients || [];
+      const query = (document.getElementById('search-clients')?.value || '').trim().toLowerCase();
+      if (query) {
+        filterClientsTable();
+      } else {
+        displayClientsRows(allClients);
+      }
+    }
+
+    function filterClientsTable() {
+      const query = (document.getElementById('search-clients')?.value || '').trim().toLowerCase();
+      const clearBtn = document.getElementById('btn-clear-clients-search');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !query);
+      }
+
+      if (!query) {
+        displayClientsRows(allClients);
+        return;
+      }
+
+      const filtered = allClients.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        return name.includes(query) || phone.includes(query) || email.includes(query);
+      });
+
+      displayClientsRows(filtered);
+    }
+
+    function clearClientsSearch() {
+      const input = document.getElementById('search-clients');
+      if (input) input.value = '';
+      filterClientsTable();
+    }
+
+    function displayClientsRows(clients) {
       const tbody = document.getElementById('clients-table-body');
-      if (clients.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-500">لا يوجد أي زبون مسجل حالياً.</td></tr>`;
+      if (!tbody) return;
+      if (!clients || clients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-slate-500">لا يوجد أي زبائن مطابقة للبحث 🔍</td></tr>`;
         return;
       }
 
@@ -1984,11 +2110,17 @@
 
         const blockBtn = c.is_active
           ? `<button onclick="toggleBlockUser('${c.user_id}', false)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 transition">
-               حظر (Block) 🚫
+               حظر 🚫
              </button>`
           : `<button onclick="toggleBlockUser('${c.user_id}', true)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition">
                رفع الحظر 🔓
              </button>`;
+
+        const deleteClientBtn = `
+          <button onclick="deleteClient('${c.user_id}', '${(c.name || '').replace(/'/g, "\\'")}')" title="حذف الزبون نهائياً من المنصة" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1">
+            <span>🗑️</span> حذف
+          </button>
+        `;
 
         return `
           <tr class="hover:bg-slate-800/40 transition">
@@ -1999,10 +2131,40 @@
             <td class="p-3 font-mono font-bold text-amber-400">${c.total_orders || 0} طلب</td>
             <td class="p-3 font-bold text-emerald-400">${totalSpent} DZD</td>
             <td class="p-3">${activeBadge}</td>
-            <td class="p-3 text-center">${blockBtn}</td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5 flex-wrap">
+                ${blockBtn}
+                ${deleteClientBtn}
+              </div>
+            </td>
           </tr>
         `;
       }).join('');
+    }
+
+    // حذف زبون نهائياً (Supprimer Client)
+    async function deleteClient(clientId, clientName) {
+      if (!confirm(`⚠️ هل أنت متأكد من حذف الزبون "${clientName}" نهائياً من المنصة؟\n\n- سيتم حذف حسابه وطلباته نهائياً من النظام.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/clients/${clientId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${adminToken}`
+          }
+        }).then(r => r.json());
+
+        if (res.statusCode >= 400 || res.error) {
+          alert('❌ خطأ أثناء الحذف: ' + (res.message || 'فشلت العملية'));
+        } else {
+          alert('🗑️ ' + (res.message || 'تم حذف الزبون بنجاح'));
+          loadDashboard();
+        }
+      } catch (err) {
+        alert('حدث خطأ في الاتصال بالسيرفر');
+      }
     }
 
     // Modal إضافة زبون
@@ -2732,6 +2894,14 @@
         btn.disabled = false;
         btn.innerHTML = '<span>✅</span> تأكيد الشحن الفوري';
       }
+    }
+
+    function loadDrivers() {
+      loadDashboard();
+    }
+
+    function loadClients() {
+      loadDashboard();
     }
 
     function connectSocket() {
