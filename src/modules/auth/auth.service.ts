@@ -229,6 +229,22 @@ export class AuthService {
     };
   }
 
+  /**
+   * جلب إعدادات تسعيرة المنصة الحية المعتمدة
+   */
+  async getPricingSettings() {
+    const [settings] = await this.db.query(
+      `SELECT base_fee, per_km_rate, min_order_price, surge_multiplier, commission_rate FROM platform_settings WHERE id = 1`,
+    );
+    return {
+      base_fee: parseFloat(settings?.base_fee ?? 300),
+      per_km_rate: parseFloat(settings?.per_km_rate ?? 50),
+      min_order_price: parseFloat(settings?.min_order_price ?? 250),
+      surge_multiplier: parseFloat(settings?.surge_multiplier ?? 1.0),
+      commission_rate: parseFloat(settings?.commission_rate ?? 15.0),
+    };
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
   private _signToken(user: { id: string; role: string; phone: string }) {
     return this.jwtService.sign({

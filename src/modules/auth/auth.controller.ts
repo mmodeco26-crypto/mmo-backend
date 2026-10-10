@@ -62,4 +62,10 @@ export class AuthController {
   getSimulatorClientToken() {
     return this.authService.getSimulatorClientToken();
   }
+
+  @ApiOperation({ summary: 'جلب إعدادات تسعيرة المنصة المعتمدة' })
+  @Get('pricing-settings')
+  getPricingSettings() {
+    return this.authService.getPricingSettings();
+  }
 }
