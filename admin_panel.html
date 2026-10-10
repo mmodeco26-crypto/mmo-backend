@@ -959,8 +959,8 @@
 </div>
 
   <script>
-    // 🌐 رابط السيرفر السحابي المباشر ليعمل التطبيق على الهاتف وشبكة 4G بدون قيود
-    const DEFAULT_CLOUD_API = 'https://methods-embassy-reconstruction-for.trycloudflare.com';
+    // 🌐 رابط السيرفر السحابي المباشر الدائم (Render.com 24/7)
+    const DEFAULT_CLOUD_API = 'https://mmo-backend-tx2s.onrender.com';
     const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     let API_HOST = localStorage.getItem('mmo_api_host') || (isLocalHost ? 'http://localhost:3000' : DEFAULT_CLOUD_API);
     let API_BASE = `${API_HOST}/api/v1`;
