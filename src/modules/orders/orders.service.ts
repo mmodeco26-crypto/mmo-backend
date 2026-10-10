@@ -32,8 +32,8 @@ export class OrdersService {
 
   // ─── إنشاء طلب ────────────────────────────────────────────────────────────
   async createOrder(clientId: string, dto: CreateOrderDto) {
-    // 1. حساب المسافة في الـ Backend
-    const distanceKm = this.pricingService.calculateDistanceKm(
+    // 1. حساب مسافة الطريق الحقيقية (Road Distance)
+    const distanceKm = await this.pricingService.calculateRoadDistanceKm(
       dto.pickup_lat, dto.pickup_lng,
       dto.dropoff_lat, dto.dropoff_lng,
     );

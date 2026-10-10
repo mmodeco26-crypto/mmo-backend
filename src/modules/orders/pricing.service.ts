@@ -36,6 +36,27 @@ export class PricingService {
   }
 
   /**
+   * حساب مسافة الطريق الحقيقية (Road Distance) عبر محرك الطرق OSRM مع fallback ذكي
+   */
+  async calculateRoadDistanceKm(
+    lat1: number, lng1: number,
+    lat2: number, lng2: number,
+  ): Promise<number> {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=false`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(2500) });
+      const data = await res.json();
+      if (data?.routes?.[0]?.distance) {
+        return parseFloat((data.routes[0].distance / 1000).toFixed(2));
+      }
+    } catch (e) {
+      // في حالة انقطاع مؤقت لخدمة التوجيه، استخدام Haversine مع معامل انحناء الطرق (1.25)
+    }
+    const haversine = this.calculateDistanceKm(lat1, lng1, lat2, lng2);
+    return parseFloat((haversine * 1.25).toFixed(2));
+  }
+
+  /**
    * جلب الإعدادات الحية الحالية من قاعدة البيانات
    */
   async getSettings() {

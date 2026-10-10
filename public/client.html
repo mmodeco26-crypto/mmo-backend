@@ -462,21 +462,76 @@
       return Math.max(pricingConfig.min_order_price, raw).toFixed(2);
     }
 
-    function updateRoute() {
-      if (pickupPoint && dropoffPoint) {
-        if (routePolyline) map.removeLayer(routePolyline);
-        routePolyline = L.polyline([pickupPoint, dropoffPoint], {
-          color: '#f59e0b',
-          weight: 4,
-          dashArray: '8, 8',
-          opacity: 0.85
-        }).addTo(map);
+    let currentRoutePoints = [];
+    let currentRoadDistanceKm = 0;
+    let routeBorderPolyline = null;
 
-        const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
-        const price = calculateEstimatedPrice(distKm);
-        document.getElementById('calc-distance').innerText = `${distKm} كم`;
-        document.getElementById('calc-price').innerText = `${price} دج`;
+    async function updateRoute() {
+      if (!pickupPoint || !dropoffPoint) return;
+
+      const p1 = pickupPoint;
+      const p2 = dropoffPoint;
+      const distEl = document.getElementById('calc-distance');
+      const priceEl = document.getElementById('calc-price');
+
+      distEl.innerText = '⏳ جاري حساب مسار الطريق...';
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url).then(r => r.json());
+
+        if (res?.routes && res.routes[0]) {
+          const route = res.routes[0];
+          currentRoadDistanceKm = parseFloat((route.distance / 1000).toFixed(2));
+          const durationMin = Math.ceil(route.duration / 60);
+
+          currentRoutePoints = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+          if (routePolyline) map.removeLayer(routePolyline);
+          if (routeBorderPolyline) map.removeLayer(routeBorderPolyline);
+
+          routeBorderPolyline = L.polyline(currentRoutePoints, {
+            color: '#0f172a',
+            weight: 7,
+            opacity: 0.9,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(map);
+
+          routePolyline = L.polyline(currentRoutePoints, {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(map);
+
+          const price = calculateEstimatedPrice(currentRoadDistanceKm);
+          distEl.innerText = `${currentRoadDistanceKm} كم (~${durationMin} دقيقة)`;
+          priceEl.innerText = `${price} دج`;
+          return;
+        }
+      } catch (err) {
+        console.warn('OSRM error, falling back:', err);
       }
+
+      const straightKm = (map.distance(p1, p2) / 1000);
+      currentRoadDistanceKm = parseFloat((straightKm * 1.25).toFixed(2));
+      currentRoutePoints = [[p1.lat, p1.lng], [p2.lat, p2.lng]];
+
+      if (routePolyline) map.removeLayer(routePolyline);
+      if (routeBorderPolyline) map.removeLayer(routeBorderPolyline);
+
+      routePolyline = L.polyline(currentRoutePoints, {
+        color: '#f59e0b',
+        weight: 4,
+        dashArray: '6, 6',
+        opacity: 0.85
+      }).addTo(map);
+
+      const price = calculateEstimatedPrice(currentRoadDistanceKm);
+      distEl.innerText = `${currentRoadDistanceKm} كم (تقديري)`;
+      priceEl.innerText = `${price} دج`;
     }
 
     function getCurrentLocation() {

@@ -509,21 +509,80 @@
       }
     }
 
-    function updateRoute() {
-      if (pickupPoint && dropoffPoint) {
-        if (routePolyline) map.removeLayer(routePolyline);
-        routePolyline = L.polyline([pickupPoint, dropoffPoint], {
-          color: '#f59e0b',
-          weight: 4,
-          dashArray: '8, 8',
-          opacity: 0.85
-        }).addTo(map);
+    let currentRoutePoints = [];
+    let currentRoadDistanceKm = 0;
+    let routeBorderPolyline = null;
 
-        const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
-        const price = calculateEstimatedPrice(distKm);
-        document.getElementById('calc-distance').innerText = `${distKm} كم`;
-        document.getElementById('calc-price').innerText = `${price} دج`;
+    async function updateRoute() {
+      if (!pickupPoint || !dropoffPoint) return;
+
+      const p1 = pickupPoint;
+      const p2 = dropoffPoint;
+      const distEl = document.getElementById('calc-distance');
+      const priceEl = document.getElementById('calc-price');
+
+      distEl.innerText = '⏳ جاري حساب مسار الطريق...';
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url).then(r => r.json());
+
+        if (res?.routes && res.routes[0]) {
+          const route = res.routes[0];
+          currentRoadDistanceKm = parseFloat((route.distance / 1000).toFixed(2));
+          const durationMin = Math.ceil(route.duration / 60);
+
+          // إحداثيات الطريق الحقيقي نيشان
+          currentRoutePoints = route.geometry.coordinates.map(c => [c[1], c[0]]);
+
+          if (routePolyline) map.removeLayer(routePolyline);
+          if (routeBorderPolyline) map.removeLayer(routeBorderPolyline);
+
+          // إطار خارجي داكن للمسار
+          routeBorderPolyline = L.polyline(currentRoutePoints, {
+            color: '#0f172a',
+            weight: 7,
+            opacity: 0.9,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(map);
+
+          // مسار الطريق الحقيقي الواضح (أزرق سماوي مضيء)
+          routePolyline = L.polyline(currentRoutePoints, {
+            color: '#38bdf8',
+            weight: 5,
+            opacity: 0.95,
+            lineCap: 'round',
+            lineJoin: 'round'
+          }).addTo(map);
+
+          const price = calculateEstimatedPrice(currentRoadDistanceKm);
+          distEl.innerText = `${currentRoadDistanceKm} كم (~${durationMin} دقيقة)`;
+          priceEl.innerText = `${price} دج`;
+          return;
+        }
+      } catch (err) {
+        console.warn('OSRM error, falling back:', err);
       }
+
+      // fallback في حالة بطء الشبكة
+      const straightKm = (map.distance(p1, p2) / 1000);
+      currentRoadDistanceKm = parseFloat((straightKm * 1.25).toFixed(2));
+      currentRoutePoints = [[p1.lat, p1.lng], [p2.lat, p2.lng]];
+
+      if (routePolyline) map.removeLayer(routePolyline);
+      if (routeBorderPolyline) map.removeLayer(routeBorderPolyline);
+
+      routePolyline = L.polyline(currentRoutePoints, {
+        color: '#f59e0b',
+        weight: 4,
+        dashArray: '6, 6',
+        opacity: 0.85
+      }).addTo(map);
+
+      const price = calculateEstimatedPrice(currentRoadDistanceKm);
+      distEl.innerText = `${currentRoadDistanceKm} كم (تقديري)`;
+      priceEl.innerText = `${price} دج`;
     }
 
     let pricingConfig = {
@@ -564,9 +623,13 @@
       if (dropoffMarker) map.removeLayer(dropoffMarker);
       if (driverMarker) map.removeLayer(driverMarker);
       if (routePolyline) map.removeLayer(routePolyline);
+      if (routeBorderPolyline) map.removeLayer(routeBorderPolyline);
       pickupPoint = null;
       dropoffPoint = null;
       routePolyline = null;
+      routeBorderPolyline = null;
+      currentRoutePoints = [];
+      currentRoadDistanceKm = 0;
       document.getElementById('calc-distance').innerText = '0.00 كم';
       document.getElementById('calc-price').innerText = '0.00 دج';
       document.getElementById('pickup-coords-badge').innerText = '--, --';
@@ -881,14 +944,26 @@
       }
     }
 
-    // 6. محاكاة حركة السائق
+    // 6. محاكاة حركة السائق على مسار الطريق الحقيقي نيشان
     function simulateDriverMove(progress) {
-      if (!pickupPoint || !dropoffPoint) return;
-      const pct = progress / 100;
-      const lat = pickupPoint.lat + (dropoffPoint.lat - pickupPoint.lat) * pct;
-      const lng = pickupPoint.lng + (dropoffPoint.lng - pickupPoint.lng) * pct;
-      
-      if (driverMarker) driverMarker.setLatLng([lat, lng]);
+      if (!currentRoutePoints || currentRoutePoints.length === 0) {
+        if (!pickupPoint || !dropoffPoint) return;
+        currentRoutePoints = [[pickupPoint.lat, pickupPoint.lng], [dropoffPoint.lat, dropoffPoint.lng]];
+      }
+
+      const totalPts = currentRoutePoints.length;
+      const targetIndex = Math.min(
+        totalPts - 1,
+        Math.floor((progress / 100) * (totalPts - 1))
+      );
+
+      const [lat, lng] = currentRoutePoints[targetIndex];
+
+      if (driverMarker) {
+        driverMarker.setLatLng([lat, lng]);
+      } else {
+        driverMarker = L.marker([lat, lng], { icon: motoIcon }).addTo(map);
+      }
 
       if (socket && currentOrderId) {
         socket.emit('driver_location', {
@@ -964,22 +1039,28 @@
       await updateOrderStatus('picked_up');
       await new Promise(r => setTimeout(r, 700));
 
-      // 5. قيادة الدراجة ومحاكاة التحرك
-      logDriver(`🛵 السائق "${selectedDriver.name}" ينطلق الآن على الخريطة نحو نقطة التسليم...`);
-      let prog = 0;
+      // 5. قيادة الدراجة على مسار الطريق الحقيقي نيشان
+      logDriver(`🛵 السائق "${selectedDriver.name}" ينطلق الآن على مسار الطريق الحقيقي نيشان نحو نقطة التسليم...`);
+      let curIdx = 0;
+      const totalPts = (currentRoutePoints && currentRoutePoints.length > 0) ? currentRoutePoints.length : 100;
+      const step = Math.max(1, Math.floor(totalPts / 60)); // تحديث سلس على 60 نقطة
+
       clearInterval(autoSimTimer);
       autoSimTimer = setInterval(async () => {
-        prog += 10;
+        curIdx += step;
+        if (curIdx >= totalPts) curIdx = totalPts - 1;
+        const prog = Math.round((curIdx / (totalPts - 1)) * 100);
         document.getElementById('driver-progress').value = prog;
         simulateDriverMove(prog);
-        if (prog >= 100) {
+
+        if (curIdx >= totalPts - 1) {
           clearInterval(autoSimTimer);
           await updateOrderStatus('delivered');
           btn.disabled = false;
           btn.innerHTML = '<span>🚀</span> تشغيل سيناريو كامل بنقرة واحدة (1-Clic)';
-          logClient(`🎉 اكتملت رحلة التوصيل بنجاح تام بالسائق "${selectedDriver.name}"!`);
+          logClient(`🎉 اكتملت رحلة التوصيل بنجاح تام بالسائق "${selectedDriver.name}" عبر مسار الطريق الحقيقي!`);
         }
-      }, 350);
+      }, 100);
     }
 
     function submitReview() {
