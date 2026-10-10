@@ -870,14 +870,43 @@
           })
         }).then(r => r.json());
 
+        let estPrice = 0;
+        const calcPriceEl = document.getElementById('calc-price');
+        if (calcPriceEl) {
+          const parsed = parseFloat(calcPriceEl.innerText.replace(/[^0-9.]/g, ''));
+          if (parsed > 0) estPrice = parsed;
+        }
+        if (!estPrice) estPrice = 1033.50;
+
+        let estDistance = 0;
+        const calcDistEl = document.getElementById('calc-distance');
+        if (calcDistEl) {
+          const parsedDist = parseFloat(calcDistEl.innerText.replace(/[^0-9.]/g, ''));
+          if (parsedDist > 0) estDistance = parsedDist;
+        }
+        if (!estDistance) estDistance = 14.2;
+
+        const platformCommission = parseFloat((estPrice * 0.15).toFixed(2));
+        const driverNet = parseFloat((estPrice - platformCommission).toFixed(2));
+
         const order = res.data || res;
-        const validOrder = (order && order.id) ? order : {
+        const validOrder = (order && order.id) ? {
+          ...order,
+          total_price: parseFloat(order.total_price) || estPrice,
+          driver_net: parseFloat(order.driver_net) || driverNet,
+          distance_km: parseFloat(order.distance_km) || estDistance,
+          road_points: currentRoutePoints.length > 0 ? currentRoutePoints : null
+        } : {
           id: 'ord-' + Math.random().toString(36).substring(2, 9),
           pickup_address: pickupAddr,
+          pickup_coords: pickupPoint ? [pickupPoint.lat, pickupPoint.lng] : [36.7725, 3.0588],
           dropoff_address: dropoffAddr,
-          total_price: 1033.50,
-          driver_net: 878.50,
-          distance_km: 14.2,
+          dropoff_coords: dropoffPoint ? [dropoffPoint.lat, dropoffPoint.lng] : [36.7167, 3.1833],
+          road_points: currentRoutePoints.length > 0 ? currentRoutePoints : null,
+          total_price: estPrice,
+          platform_fee: platformCommission,
+          driver_net: driverNet,
+          distance_km: estDistance,
           notes: fullNotes,
           status: 'pending'
         };
@@ -996,6 +1025,23 @@
           lng: lng
         });
       }
+
+      // بث موقع الدراجة فوراً لتطبيق الزبون المفتوح في نافذة ثانية
+      try {
+        const remainingKm = Math.max(0.1, (currentRoadDistanceKm * (1 - (progress / 100)))).toFixed(1);
+        const locPayload = {
+          type: 'DRIVER_LOCATION_UPDATE',
+          lat: lat,
+          lng: lng,
+          progress: progress / 100,
+          remainingKm: remainingKm,
+          remainingMin: Math.max(1, Math.ceil(remainingKm * 1.5)),
+          driver: selectedDriver ? { name: selectedDriver.name, phone: selectedDriver.phone, bike: selectedDriver.vehicle_plate } : { name: 'azer deco', phone: '0794362893', bike: 'SYM Symphony ST' }
+        };
+        const bc = new BroadcastChannel('mmo_delivery_channel');
+        bc.postMessage(locPayload);
+        localStorage.setItem('mmo_driver_location', JSON.stringify(locPayload));
+      } catch (e) {}
     }
 
     // 7. تحديث حالة الطلب

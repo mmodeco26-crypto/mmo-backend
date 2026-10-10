@@ -1105,6 +1105,30 @@ function App() {
     return simPathPoints[index];
   }, [simPathPoints, simProgress, simPickup]);
 
+  // بث موقع السائق فوراً لتطبيق الزبون عند تحرك الدراجة في المحاكي
+  useEffect(() => {
+    if (!currentSimBikeCoord) return;
+    try {
+      const remainingKm = Math.max(0.1, (simDistanceKm * (1 - (simProgress / 100)))).toFixed(1);
+      const locPayload = {
+        type: 'DRIVER_LOCATION_UPDATE',
+        lat: currentSimBikeCoord[0],
+        lng: currentSimBikeCoord[1],
+        progress: simProgress / 100,
+        remainingKm: remainingKm,
+        remainingMin: Math.max(1, Math.ceil(remainingKm * 1.5)),
+        driver: {
+          name: currentSimDriver.name,
+          phone: currentSimDriver.phone,
+          bike: currentSimDriver.vehicle_model
+        }
+      };
+      const bc = new BroadcastChannel('mmo_delivery_channel');
+      bc.postMessage(locPayload);
+      localStorage.setItem('mmo_driver_location', JSON.stringify(locPayload));
+    } catch (e) {}
+  }, [currentSimBikeCoord, simProgress, simDistanceKm, currentSimDriver]);
+
   // Dynamic price calculation in simulator (real driving road distance)
   const simDistanceKm = useMemo(() => {
     if (roadRouteData && roadRouteData.roadDistanceKm) {
@@ -1306,6 +1330,24 @@ function App() {
     }));
     setSimProgress(15);
     playAudioTone('action', soundEnabled);
+
+    try {
+      const bc = new BroadcastChannel('mmo_delivery_channel');
+      bc.postMessage({
+        type: 'ORDER_ACCEPTED',
+        orderId: simActiveOrder.id,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model },
+        coords: currentSimBikeCoord
+      });
+      localStorage.setItem('mmo_dispatch_event', JSON.stringify({
+        type: 'ORDER_ACCEPTED',
+        orderId: simActiveOrder.id,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model },
+        coords: currentSimBikeCoord,
+        t: Date.now()
+      }));
+    } catch (e) {}
+
     const nowTime = new Date().toLocaleTimeString('ar-DZ');
     setSimClientLogs(prev => [{
       time: nowTime,
@@ -1350,6 +1392,22 @@ function App() {
     setSimProgress(10);
     setIsLiveTracking(true); // Automatically drives along the real road!
     playAudioTone('action', soundEnabled);
+
+    try {
+      const bc = new BroadcastChannel('mmo_delivery_channel');
+      bc.postMessage({
+        type: 'ORDER_PICKED_UP',
+        orderId: simActiveOrder.id,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model }
+      });
+      localStorage.setItem('mmo_dispatch_event', JSON.stringify({
+        type: 'ORDER_PICKED_UP',
+        orderId: simActiveOrder.id,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model },
+        t: Date.now()
+      }));
+    } catch (e) {}
+
     const nowTime = new Date().toLocaleTimeString('ar-DZ');
     setSimClientLogs(prev => [{
       time: nowTime,
@@ -1376,6 +1434,23 @@ function App() {
     }));
     setSimProgress(100);
     playAudioTone('delivered', soundEnabled);
+
+    try {
+      const bc = new BroadcastChannel('mmo_delivery_channel');
+      bc.postMessage({
+        type: 'ORDER_DELIVERED',
+        orderId: orderId,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model },
+        earned: driverShare
+      });
+      localStorage.setItem('mmo_dispatch_event', JSON.stringify({
+        type: 'ORDER_DELIVERED',
+        orderId: orderId,
+        driver: { name: currentSimDriver.name, phone: currentSimDriver.phone, bike: currentSimDriver.vehicle_model },
+        earned: driverShare,
+        t: Date.now()
+      }));
+    } catch (e) {}
 
     // Credit driver wallet
     setDrivers(curr => curr.map(d => d.id === currentSimDriver.id ? {

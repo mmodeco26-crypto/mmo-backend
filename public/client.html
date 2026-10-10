@@ -635,31 +635,39 @@
       btn.disabled = true;
       btn.innerText = '⏳ جاري إرسال الطلب للسائقين...';
 
-      // 1. حساب السعر والمسافة التقديرية
-      let estPrice = 1033.50;
-      let estDistance = 14.2;
-      const priceText = document.getElementById('price-total-display')?.innerText;
-      if (priceText) {
-        const parsed = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+      // 1. قراءة السعر والمسافة الحقيقية المعتمدة من حقول الواجهة مباشرة
+      let estPrice = 0;
+      const calcPriceEl = document.getElementById('calc-price');
+      if (calcPriceEl) {
+        const parsed = parseFloat(calcPriceEl.innerText.replace(/[^0-9.]/g, ''));
         if (parsed > 0) estPrice = parsed;
       }
-      const distText = document.getElementById('distance-km-display')?.innerText;
-      if (distText) {
-        const parsedDist = parseFloat(distText.replace(/[^0-9.]/g, ''));
+      if (!estPrice) {
+        estPrice = parseFloat(calculateEstimatedPrice(currentRoadDistanceKm || 5.0));
+      }
+
+      let estDistance = currentRoadDistanceKm || 0;
+      const calcDistEl = document.getElementById('calc-distance');
+      if (calcDistEl) {
+        const parsedDist = parseFloat(calcDistEl.innerText.replace(/[^0-9.]/g, ''));
         if (parsedDist > 0) estDistance = parsedDist;
       }
+      if (!estDistance) estDistance = 5.0;
+
+      const platformCommission = parseFloat((estPrice * 0.15).toFixed(2));
+      const driverNet = parseFloat((estPrice - platformCommission).toFixed(2));
 
       const generatedOrderId = 'ord-' + Math.random().toString(36).substring(2, 9);
       const localOrderData = {
         id: generatedOrderId,
         pickup_address: pickupAddr,
-        pickup_lat: pickupPoint ? pickupPoint.lat : 36.7725,
-        pickup_lng: pickupPoint ? pickupPoint.lng : 3.0588,
+        pickup_coords: pickupPoint ? [pickupPoint.lat, pickupPoint.lng] : [36.7725, 3.0588],
         dropoff_address: dropoffAddr,
-        dropoff_lat: dropoffPoint ? dropoffPoint.lat : 36.7167,
-        dropoff_lng: dropoffPoint ? dropoffPoint.lng : 3.1833,
+        dropoff_coords: dropoffPoint ? [dropoffPoint.lat, dropoffPoint.lng] : [36.7167, 3.1833],
+        road_points: currentRoutePoints.length > 0 ? currentRoutePoints : null,
         total_price: estPrice,
-        driver_net: Math.round(estPrice * 0.85),
+        platform_fee: platformCommission,
+        driver_net: driverNet,
         distance_km: estDistance,
         client_name: 'مريم بن عيسى',
         client_phone: '0550123456',
@@ -670,13 +678,13 @@
         timestamp: Date.now()
       };
 
-      // 2. إرسال الطلب الفوري لتطبيق الشوفور (BroadcastChannel عبر النوافذ المفتوحة)
+      // 2. إرسال الطلب الفوري لتطبيق الشوفور بنفس السعر تماماً (BroadcastChannel)
       try {
         const bc = new BroadcastChannel('mmo_delivery_channel');
         bc.postMessage({ type: 'NEW_ORDER', order: localOrderData });
       } catch (e) {}
 
-      // 3. كتابة الطلب في localStorage لإطلاق حدث storage في نافذة الشوفور (Yssonier!)
+      // 3. كتابة الطلب في localStorage لإطلاق حدث storage في نافذة الشوفور
       try {
         localStorage.setItem('mmo_latest_order', JSON.stringify(localOrderData));
         const allOrders = JSON.parse(localStorage.getItem('mmo_orders') || '[]');
@@ -709,16 +717,16 @@
         }).catch(() => {});
       } catch (err) {}
 
-      // 5. تحديث واجهة الزبون والانتقال لمرحلة التتبع
+      // 5. تحديث واجهة الزبون والانتقال لمرحلة التتبع بنفس السعر المعتمد
       currentOrderId = localOrderData.id;
       document.getElementById('order-form-card').classList.add('hidden');
       document.getElementById('live-tracking-card').classList.remove('hidden');
       document.getElementById('tracking-order-id').innerText = '#' + currentOrderId.slice(0, 8);
       document.getElementById('tracking-dropoff').innerText = dropoffAddr;
-      document.getElementById('tracking-price').innerText = `${localOrderData.total_price.toLocaleString('fr-DZ')} دج`;
+      document.getElementById('tracking-price').innerText = `${estPrice.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} دج`;
       document.getElementById('order-status-badge').innerText = 'pending';
 
-      log(`🚀 تم إرسال الطلب بنجاح إلى "${dropoffAddr}"! جاري رنين وتنبيه تطبيق الشوفور 🛵...`);
+      log(`🚀 تم إرسال الطلب بمبلغ ${estPrice.toLocaleString('fr-DZ')} دج (${estDistance} كم)! جاري رنين هاتف الشوفور 🛵...`);
 
       btn.disabled = false;
       btn.innerHTML = '<span>🛵</span> طلب دراجة نارية للتوصيل الآن';
@@ -735,28 +743,82 @@
       document.getElementById('live-tracking-card').classList.add('hidden');
       document.getElementById('tracking-driver-box').classList.add('hidden');
       document.getElementById('client-review-box').classList.add('hidden');
+      if (driverMarker) {
+        map.removeLayer(driverMarker);
+        driverMarker = null;
+      }
       currentOrderId = null;
     }
 
-    // الاستماع لاستجابات الشوفور اللحظية (BroadcastChannel & LocalStorage)
+    // 🛵 دالة رسم وتحريك دراجة الشوفور مباشرة على خريطة الزبون (Live Driver Tracking on Map)
+    function updateClientDriverMarker(locData) {
+      if (!locData || !locData.lat || !locData.lng) return;
+      const latlng = [locData.lat, locData.lng];
+      const driver = locData.driver || { name: 'azer deco', phone: '0794362893', bike: 'SYM Symphony ST (16-12345-22)' };
+
+      // 1. رسم أو تحريك الماركر الخاص بالشوفور
+      if (!driverMarker) {
+        const liveMotoIcon = L.divIcon({
+          className: 'custom-live-bike-pulse',
+          html: `<div style="background: linear-gradient(135deg, #f59e0b, #d97706); width: 42px; height: 42px; border-radius: 16px; border: 3px solid #ffffff; box-shadow: 0 0 22px rgba(245,158,11,0.95); display: flex; align-items: center; justify-content: center; font-size: 22px;" class="animate-bounce">🛵</div>`,
+          iconSize: [42, 42],
+          iconAnchor: [21, 21]
+        });
+        driverMarker = L.marker(latlng, { icon: liveMotoIcon, zIndexOffset: 1000 }).addTo(map);
+        driverMarker.bindPopup(`<b>السائق: ${driver.name} 🛵</b><br>${driver.bike}<br><span style="color:#10b981;font-weight:bold;">● في الطريق إليك مباشرة</span>`).openPopup();
+      } else {
+        driverMarker.setLatLng(latlng);
+        driverMarker.setPopupContent(`<b>السائق: ${driver.name} 🛵</b><br>${driver.bike}<br><span style="color:#10b981;font-weight:bold;">● متبقي: ${locData.remainingKm || '1'} كم (~${locData.remainingMin || 2} د)</span>`);
+      }
+
+      // 2. إظهار وتحديث صندوق بيانات السائق في الواجهة
+      const driverBox = document.getElementById('tracking-driver-box');
+      if (driverBox) driverBox.classList.remove('hidden');
+
+      const nameEl = document.getElementById('tracking-driver-name');
+      if (nameEl) nameEl.innerText = driver.name;
+
+      const phoneEl = document.getElementById('tracking-driver-phone');
+      if (phoneEl) {
+        phoneEl.innerText = driver.phone || '0794362893';
+      }
+
+      const plateEl = document.getElementById('tracking-driver-plate');
+      if (plateEl) plateEl.innerText = driver.bike || 'SYM Symphony ST (16-12345-22)';
+
+      // 3. تحديث شارة الحالة
+      const badge = document.getElementById('order-status-badge');
+      if (badge && locData.remainingKm) {
+        badge.innerText = `السائق على بعد ${locData.remainingKm} كم (~${locData.remainingMin || 2} د)`;
+        badge.className = 'text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2.5 py-0.5 rounded-md font-bold font-mono';
+      }
+    }
+
+    // الاستماع لاستجابات الشوفور وحركته اللحظية (BroadcastChannel & LocalStorage)
     try {
       const clientBC = new BroadcastChannel('mmo_delivery_channel');
       clientBC.onmessage = (event) => {
         if (!event.data) return;
-        if (event.data.type === 'ORDER_ACCEPTED') {
+        const type = event.data.type;
+        if (type === 'ORDER_ACCEPTED') {
           const driver = event.data.driver || { name: 'azer deco', bike: 'SYM Symphony ST' };
-          log(`🛵 قبل السائق ${driver.name} (${driver.bike}) طلبك وهو في طريقه لاستلام الطرد!`);
+          log(`🛵 قبل السائق ${driver.name} طلبك! الدراجة متجهة لنقطة الاستلام.`);
           const badge = document.getElementById('order-status-badge');
           if (badge) badge.innerText = 'accepted';
           const driverBox = document.getElementById('tracking-driver-box');
           if (driverBox) driverBox.classList.remove('hidden');
           const drvName = document.getElementById('tracking-driver-name');
           if (drvName) drvName.innerText = driver.name;
-        } else if (event.data.type === 'ORDER_PICKED_UP') {
-          log('📦 استلم السائق الطرد، وهو الآن في الطريق نحو وجهة التسليم!');
+          if (event.data.coords) {
+            updateClientDriverMarker({ lat: event.data.coords[0], lng: event.data.coords[1], driver });
+          }
+        } else if (type === 'DRIVER_LOCATION_UPDATE') {
+          updateClientDriverMarker(event.data);
+        } else if (type === 'ORDER_PICKED_UP') {
+          log('📦 استلم السائق الطرد، وهو الآن يقود الدراجة نحو وجهة التسليم!');
           const badge = document.getElementById('order-status-badge');
           if (badge) badge.innerText = 'picked_up';
-        } else if (event.data.type === 'ORDER_DELIVERED') {
+        } else if (type === 'ORDER_DELIVERED') {
           log('✅ تم تسليم الطرد بنجاح وقبض المبلغ كاش! شكراً لتعاملكم مع موطو إكسبريس.');
           const badge = document.getElementById('order-status-badge');
           if (badge) badge.innerText = 'delivered';
@@ -767,18 +829,26 @@
     } catch (e) {}
 
     window.addEventListener('storage', (e) => {
-      if (e.key === 'mmo_dispatch_event' && e.newValue) {
+      if (e.key === 'mmo_driver_location' && e.newValue) {
+        try {
+          const loc = JSON.parse(e.newValue);
+          updateClientDriverMarker(loc);
+        } catch(err) {}
+      } else if (e.key === 'mmo_dispatch_event' && e.newValue) {
         try {
           const ev = JSON.parse(e.newValue);
           if (ev.type === 'ORDER_ACCEPTED') {
             const driver = ev.driver || { name: 'azer deco' };
-            log(`🛵 قبل السائق ${driver.name} طلبك وهو في طريقه لاستلام الطرد!`);
+            log(`🛵 قبل السائق ${driver.name} طلبك وهو في طريقه للاستلام!`);
             const badge = document.getElementById('order-status-badge');
             if (badge) badge.innerText = 'accepted';
             const driverBox = document.getElementById('tracking-driver-box');
             if (driverBox) driverBox.classList.remove('hidden');
+            if (ev.coords) {
+              updateClientDriverMarker({ lat: ev.coords[0], lng: ev.coords[1], driver });
+            }
           } else if (ev.type === 'ORDER_PICKED_UP') {
-            log('📦 استلم السائق الطرد، وهو الآن في الطريق نحو وجهة التسليم!');
+            log('📦 تم استلام الطرد، السائق متجه نحو وجهة التسليم!');
             const badge = document.getElementById('order-status-badge');
             if (badge) badge.innerText = 'picked_up';
           } else if (ev.type === 'ORDER_DELIVERED') {

@@ -592,15 +592,19 @@
           </div>
         </div>
 
-        <!-- السعر الصافي والأرباح -->
-        <div class="grid grid-cols-2 gap-2 text-center">
-          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
-            <span class="text-[10px] text-slate-400 block">المسافة المقدرة</span>
-            <span id="incoming-distance-val" class="font-extrabold font-mono text-sm text-slate-200">14.2 كم</span>
+        <!-- السعر الصافي والأرباح والتفاصيل المتطابقة 100% مع الزبون -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="p-2 rounded-xl bg-slate-950 border border-slate-800">
+            <span class="text-[9px] text-slate-400 block font-bold">المسافة المقدرة</span>
+            <span id="incoming-distance-val" class="font-extrabold font-mono text-xs sm:text-sm text-slate-200">14.2 كم</span>
           </div>
-          <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-            <span class="text-[10px] text-emerald-400 font-bold block">صافي ربحك كاش</span>
-            <span id="incoming-price-val" class="font-black font-mono text-base text-emerald-400">878.50 DZD</span>
+          <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30">
+            <span class="text-[9px] text-amber-400 block font-bold">كاش من الزبون</span>
+            <span id="incoming-gross-price" class="font-black font-mono text-xs sm:text-sm text-amber-300">1,033.50 DZD</span>
+          </div>
+          <div class="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+            <span class="text-[9px] text-emerald-400 font-bold block">صافي ربحك (85%)</span>
+            <span id="incoming-price-val" class="font-black font-mono text-xs sm:text-sm text-emerald-400">878.50 DZD</span>
           </div>
         </div>
       </div>
@@ -693,11 +697,11 @@
     let countdownInterval = null;
 
     // مسار افتراضي (البريد المركزي إلى باب الزوار)
-    const PICKUP_COORDS = [36.7725, 3.0588]; // Grande Poste
-    const DROPOFF_COORDS = [36.7167, 3.1833]; // Bab Ezzouar
+    let PICKUP_COORDS = [36.7725, 3.0588]; // Grande Poste
+    let DROPOFF_COORDS = [36.7167, 3.1833]; // Bab Ezzouar
     
     // إحداثيات مسار طريق حقيقي بين البريد المركزي وباب الزوار (مأخوذة من OSRM)
-    const ROAD_POINTS = [
+    let ROAD_POINTS = [
       [36.7725, 3.0588], [36.7712, 3.0601], [36.7685, 3.0620], [36.7645, 3.0645],
       [36.7600, 3.0670], [36.7550, 3.0720], [36.7500, 3.0780], [36.7460, 3.0850],
       [36.7420, 3.0930], [36.7380, 3.1020], [36.7340, 3.1150], [36.7300, 3.1280],
@@ -943,6 +947,41 @@
       return [lat, lng];
     }
 
+    // بث موقع الدراجة فوراً لتطبيق الزبون والإدارة عبر BroadcastChannel و LocalStorage
+    function broadcastDriverLocation(pos, progress) {
+      if (!pos || !pos[0] || !pos[1]) return;
+      const drv = DRIVER_PROFILES[currentDriverId] || { name: 'azer deco', phone: '0794362893', bike: 'SYM Symphony ST (16-12345-22)' };
+      const totalKm = currentActiveOrder ? (parseFloat(currentActiveOrder.distance_km) || 14.2) : 14.2;
+      const remainingKm = Math.max(0.1, (totalKm * (1 - progress))).toFixed(1);
+      const remainingMin = Math.max(1, Math.ceil(remainingKm * 1.5));
+
+      const locPayload = {
+        type: 'DRIVER_LOCATION_UPDATE',
+        lat: pos[0],
+        lng: pos[1],
+        progress: progress,
+        remainingKm: remainingKm,
+        remainingMin: remainingMin,
+        orderId: currentActiveOrder?.id || null,
+        driver: {
+          name: drv.name,
+          phone: drv.phone,
+          bike: drv.bike
+        },
+        timestamp: Date.now()
+      };
+
+      try {
+        if (deliveryBroadcastChannel) {
+          deliveryBroadcastChannel.postMessage(locPayload);
+        }
+      } catch (e) {}
+
+      try {
+        localStorage.setItem('mmo_driver_location', JSON.stringify(locPayload));
+      } catch (e) {}
+    }
+
     // تحديث موقع الدراجة
     function updateDriverLocation(progress) {
       trackingProgress = Math.max(0, Math.min(1, progress));
@@ -953,6 +992,9 @@
       // تحديث شريط التقدم
       const bar = document.getElementById('order-progress-bar');
       if (bar) bar.style.width = `${Math.round(trackingProgress * 100)}%`;
+
+      // 🛰️ بث موقع الشوفور لحظياً للزبون لكي تظهر وتتحرك الدراجة في خريطة الزبون نيشان!
+      broadcastDriverLocation(pos, trackingProgress);
     }
 
     // تشغيل / إيقاف محاكاة حركة الدراجة GPS
@@ -1016,11 +1058,17 @@
       document.getElementById('btn-action-deliver').classList.remove('hidden');
 
       // توجيه ملاحة جديد
-      document.getElementById('nav-instruction-text').innerText = 'توجه عبر الطريق السريع شرق-غرب نحو مخرج باب الزوار';
+      document.getElementById('nav-instruction-text').innerText = 'توجه عبر الطريق نحو نقطة تسليم الطرد للزبون';
       document.getElementById('nav-remaining-time').innerText = 'متبقي 12 دقيقة';
 
       // دفع الدراجة لنصف المسار
       updateDriverLocation(0.5);
+
+      // بث حدث استلام الطرد
+      broadcastDispatchEvent('ORDER_PICKED_UP', {
+        orderId: currentActiveOrder ? currentActiveOrder.id : null,
+        driver: DRIVER_PROFILES[currentDriverId]
+      });
     }
 
     // 2. إجراء تسليم الطرد وقبض الكاش (Deliver & Cash Action)
@@ -1037,10 +1085,11 @@
         });
       }
 
-      // تحديث الأرباح والمحفظة
+      // حساب الأرباح الحقيقية الصافية بدقة من الطلب
+      const earn = currentActiveOrder ? (parseFloat(currentActiveOrder.driver_net) || 878.50) : 878.50;
       const drv = DRIVER_PROFILES[currentDriverId];
-      drv.wallet += 878.50;
-      drv.earnings += 878.50;
+      drv.wallet += earn;
+      drv.earnings += earn;
       drv.ordersCount += 1;
 
       document.getElementById('driver-wallet-balance').innerText = drv.wallet.toLocaleString('fr-DZ', { minimumFractionDigits: 2 });
@@ -1058,10 +1107,17 @@
       document.getElementById('btn-action-reset').classList.remove('hidden');
 
       // توجيه ملاحة
-      document.getElementById('nav-instruction-text').innerText = 'وصلت إلى الوجهة وتم تسليم الطرد بنجاح!';
+      document.getElementById('nav-instruction-text').innerText = 'وصلت إلى الوجهة وتم تسليم الطرد وقبض الكاش بنجاح!';
       document.getElementById('nav-remaining-time').innerText = 'تم الإنجاز';
 
       updateDriverLocation(1);
+
+      // بث حدث إتمام التسليم للزبون
+      broadcastDispatchEvent('ORDER_DELIVERED', {
+        orderId: currentActiveOrder ? currentActiveOrder.id : null,
+        driver: DRIVER_PROFILES[currentDriverId],
+        earned: earn
+      });
     }
 
     // 3. إعادة الضبط للطلب القادم (Reset)
@@ -1079,7 +1135,7 @@
       document.getElementById('btn-action-reset').classList.add('hidden');
       document.getElementById('btn-action-pickup').classList.remove('hidden');
 
-      document.getElementById('nav-instruction-text').innerText = 'بعد 400 متر: اسلك اليمين نحو البريد المركزي';
+      document.getElementById('nav-instruction-text').innerText = 'بعد 400 متر: اسلك اليمين نحو نقطة الاستلام';
       document.getElementById('nav-remaining-time').innerText = 'متبقي 4 دقائق';
 
       updateDriverLocation(0.15);
@@ -1102,8 +1158,10 @@
         document.getElementById('incoming-dropoff-text').innerText = order.dropoff_address;
       }
       const price = parseFloat(order.total_price) || 1033.50;
-      const net = order.driver_net || Math.round(price * 0.85);
-      document.getElementById('incoming-price-val').innerText = `${net.toLocaleString('fr-DZ')} DZD`;
+      const net = parseFloat(order.driver_net) || (price * 0.85);
+      const grossEl = document.getElementById('incoming-gross-price');
+      if (grossEl) grossEl.innerText = `${price.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} DZD`;
+      document.getElementById('incoming-price-val').innerText = `${net.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} DZD`;
 
       if (order.distance_km) {
         document.getElementById('incoming-distance-val').innerText = `${order.distance_km} كم`;
@@ -1166,21 +1224,44 @@
           document.getElementById('dropoff-address-text').innerText = currentActiveOrder.dropoff_address;
         }
         const price = parseFloat(currentActiveOrder.total_price) || 1033.50;
-        const net = currentActiveOrder.driver_net || Math.round(price * 0.85);
-        document.getElementById('order-cash-total').innerText = `${price.toLocaleString('fr-DZ')} DZD`;
-        document.getElementById('order-driver-net').innerText = `${net.toLocaleString('fr-DZ')} DZD`;
+        const net = parseFloat(currentActiveOrder.driver_net) || (price * 0.85);
+        document.getElementById('order-cash-total').innerText = `${price.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} DZD`;
+        document.getElementById('order-driver-net').innerText = `${net.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} DZD`;
+        if (currentActiveOrder.distance_km) {
+          document.getElementById('total-trip-distance').innerText = `${currentActiveOrder.distance_km} كم`;
+        }
         if (currentActiveOrder.package_type) {
           document.getElementById('package-type-badge').innerText = currentActiveOrder.package_type;
+        }
+
+        // تحديث نقاط المسار على خريطة الشوفور إذا أرسل الزبون مسار الطريق الفعلي
+        if (currentActiveOrder.road_points && Array.isArray(currentActiveOrder.road_points) && currentActiveOrder.road_points.length > 1) {
+          ROAD_POINTS = currentActiveOrder.road_points;
+          PICKUP_COORDS = ROAD_POINTS[0];
+          DROPOFF_COORDS = ROAD_POINTS[ROAD_POINTS.length - 1];
+
+          if (pickupMarker) pickupMarker.setLatLng(PICKUP_COORDS);
+          if (dropoffMarker) dropoffMarker.setLatLng(DROPOFF_COORDS);
+          if (routePolyline) {
+            routePolyline.setLatLngs(ROAD_POINTS);
+            map.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
+          }
         }
       }
 
       handleDriverResetAction();
 
       // إرسال إشعار للتبويبات الأخرى (الزبون والإدارة) بأن السائق قبل الطلب
+      const drv = DRIVER_PROFILES[currentDriverId];
+      const startPos = ROAD_POINTS[0];
       broadcastDispatchEvent('ORDER_ACCEPTED', {
         orderId: currentActiveOrder ? currentActiveOrder.id : null,
-        driver: DRIVER_PROFILES[currentDriverId]
+        driver: drv,
+        coords: startPos
       });
+
+      // بث موقع السائق الأولي فوراً لتطبيق الزبون
+      broadcastDriverLocation(startPos, 0);
     }
 
     function rejectIncomingOrder() {
