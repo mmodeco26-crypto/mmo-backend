@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -43,5 +43,23 @@ export class AuthController {
     @Body('fcm_token') fcmToken: string,
   ) {
     return this.authService.updateFcmToken(req.user.sub, fcmToken);
+  }
+
+  @ApiOperation({ summary: 'جلب السائقين الحقيقيين المسجلين في المنصة لاختيارهم في المحاكي' })
+  @Get('simulator/drivers')
+  getSimulatorDrivers() {
+    return this.authService.getSimulatorDrivers();
+  }
+
+  @ApiOperation({ summary: 'توليد توكن حقيقي لسائق تم اختياره للتجربة في المحاكي' })
+  @Post('simulator/driver-token')
+  getSimulatorDriverToken(@Body('driver_id') driverId: string) {
+    return this.authService.getSimulatorDriverToken(driverId);
+  }
+
+  @ApiOperation({ summary: 'توليد توكن حقيقي لزبون لطلب التوصيل في المحاكي' })
+  @Post('simulator/client-token')
+  getSimulatorClientToken() {
+    return this.authService.getSimulatorClientToken();
   }
 }

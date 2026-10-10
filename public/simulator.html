@@ -157,18 +157,42 @@
           <span id="driver-online-badge" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md font-semibold">متصل Online</span>
         </div>
 
-        <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 space-y-1 text-xs mb-3">
-          <div class="flex justify-between">
-            <span class="text-slate-400">رصيد المحفظة:</span>
-            <span id="driver-wallet" class="font-mono font-bold text-emerald-400">2,500.00 دج</span>
+        <!-- اختيار السائق الحقيقي المسجل في النظام -->
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+              <span>🎯</span> اختر السائق الذي أنشأته:
+            </label>
+            <button type="button" onclick="loadRealDrivers()" title="تحديث القائمة" class="text-[10px] text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-0.5">
+              <span>🔄</span> تحديث
+            </button>
           </div>
-          <div class="flex justify-between">
-            <span class="text-slate-400">عمولة التطبيق:</span>
-            <span class="font-mono text-amber-400">15%</span>
+          <select id="select-simulator-driver" onchange="onDriverSelected(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-100 focus:outline-none focus:border-amber-400">
+            <option value="">جاري تحميل الشوفيرة المسجلين...</option>
+          </select>
+        </div>
+
+        <!-- بطاقة بيانات السائق المختار الحقيقي -->
+        <div id="driver-info-box" class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 space-y-1.5 text-xs mb-3">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">اسم السائق:</span>
+            <span id="driver-display-name" class="font-bold text-slate-100">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">الهاتف:</span>
+            <span id="driver-display-phone" class="font-mono text-slate-300">--</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400">لوحة الترقيم:</span>
+            <span id="driver-display-plate" class="font-mono text-amber-400 font-bold">--</span>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-slate-800">
+            <span class="text-slate-400">رصيد المحفظة الحقيقي:</span>
+            <span id="driver-wallet" class="font-mono font-bold text-emerald-400">0.00 دج</span>
           </div>
         </div>
 
-        <button onclick="toggleOnline()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-xs border border-slate-700 transition">
+        <button onclick="toggleOnline()" id="btn-toggle-online" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-xs border border-slate-700 transition">
           تبديل حالة التواجد (En ligne)
         </button>
       </div>
@@ -226,12 +250,12 @@
     const SOCKET_URL = `${SERVER_HOST}/tracking`;
 
     let clientToken = '', driverToken = '', driverUserId = '';
+    let realDrivers = [];
+    let selectedDriver = null;
     let pickupPoint = null, dropoffPoint = null;
     let pickupMarker = null, dropoffMarker = null, driverMarker = null;
     let currentOrderId = null;
     let socket = null;
-    let isMockMode = false;
-    let mockWalletBalance = 2500.0;
     let autoSimTimer = null;
 
     // 1. تهيئة خريطة الجزائر
@@ -311,37 +335,120 @@
       map.fitBounds([pickupPoint, dropoffPoint], { padding: [50, 50] });
     }
 
-    // 3. تهيئة الاتصال
+    // 3. تهيئة الاتصال وجلب السائقين الحقيقيين من قاعدة البيانات
     async function init() {
+      // أ. جلب توكن زبون حقيقي للطلب
       try {
-        const cRes = await fetch(API_BASE + '/auth/login', {
+        const cRes = await fetch(`${API_BASE}/auth/simulator/client-token`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: '01011111111', password: 'Password123!' })
+          headers: { 'Content-Type': 'application/json' }
         }).then(r => r.json());
 
-        clientToken = cRes.data?.access_token;
-
-        const dRes = await fetch(API_BASE + '/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: '01022222221', password: 'Password123!' })
-        }).then(r => r.json());
-
-        driverToken = dRes.data?.access_token;
-        driverUserId = dRes.data?.user?.id;
-
-        logClient('✅ متصل بسيرفر Render السحابي المباشر!');
-        logDriver('✅ تم تسجيل دخول السائق ياسين');
-        connectSockets();
+        const clientData = cRes.data || cRes;
+        if (clientData?.access_token) {
+          clientToken = clientData.access_token;
+          logClient(`✅ متصل بالسيرفر كزبون حقيقي: ${clientData.client?.name || 'زبون'}`);
+        }
       } catch (err) {
-        // نمط العرض التفاعلي الفوري المستقل
-        isMockMode = true;
-        document.getElementById('socket-status').innerText = 'وضع العرض المرئي ⚡';
-        document.getElementById('socket-dot').className = 'w-2 h-2 rounded-full bg-purple-500';
-        logClient('💡 تم تفعيل محاكي العرض التفاعلي الفوري (جاهز للعمل)');
-        logDriver('🏍️ السائق متصل وجاهز لاستقبال الطلبات');
+        logClient('⚠️ تعذر جلب توكن الزبون: ' + err.message);
       }
+
+      // ب. جلب قائمة السائقين الحقيقيين الذين أنشأهم المستخدم
+      await loadRealDrivers();
+
+      // ج. الاتصال بـ Socket.IO للرادار المباشر
+      connectSockets();
+    }
+
+    // جلب الشوفيرة الحقيقيين المسجلين في النظام
+    async function loadRealDrivers() {
+      const selectEl = document.getElementById('select-simulator-driver');
+      selectEl.innerHTML = '<option value="">⏳ جاري جلب السائقين الحقيقيين...</option>';
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/simulator/drivers`).then(r => r.json());
+        const drivers = res.data || res;
+
+        if (Array.isArray(drivers) && drivers.length > 0) {
+          realDrivers = drivers;
+          selectEl.innerHTML = drivers.map(d => `
+            <option value="${d.driver_id}">
+              🏍️ ${d.name} (${d.vehicle_plate}) - ${parseFloat(d.wallet_balance || 0).toLocaleString()} دج
+            </option>
+          `).join('');
+
+          // تحديد أول سائق أو السائق المحفوظ
+          const savedId = localStorage.getItem('mmo_sim_driver_id');
+          const initialDriver = drivers.find(d => d.driver_id === savedId) || drivers[0];
+          selectEl.value = initialDriver.driver_id;
+          await onDriverSelected(initialDriver.driver_id);
+        } else {
+          selectEl.innerHTML = '<option value="">⚠️ لا يوجد سائقون مسجلون! أنشئ سائقاً من لوحة الإدارة</option>';
+          logDriver('⚠️ لم يتم العثور على أي سائق مسجل في قاعدة البيانات. يرجى إضافة سائق من لوحة الإدارة ثم الضغط على 🔄 تحديث.');
+        }
+      } catch (err) {
+        selectEl.innerHTML = '<option value="">❌ فشل الاتصال بقاعدة البيانات</option>';
+        logDriver('❌ خطأ في الاتصال بقاعدة البيانات لجلب السائقين: ' + err.message);
+      }
+    }
+
+    // عند اختيار سائق محدد من القائمة
+    async function onDriverSelected(driverId) {
+      if (!driverId) return;
+      localStorage.setItem('mmo_sim_driver_id', driverId);
+
+      const driver = realDrivers.find(d => d.driver_id === driverId);
+      if (!driver) return;
+
+      selectedDriver = driver;
+
+      // تحديث بيانات السائق في الواجهة
+      document.getElementById('driver-display-name').innerText = driver.name || '--';
+      document.getElementById('driver-display-phone').innerText = driver.phone || '--';
+      document.getElementById('driver-display-plate').innerText = driver.vehicle_plate || '--';
+      document.getElementById('driver-wallet').innerText = `${parseFloat(driver.wallet_balance || 0).toLocaleString()} دج`;
+
+      // طلب توكن حقيقي وتفعيل السائق
+      try {
+        const res = await fetch(`${API_BASE}/auth/simulator/driver-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ driver_id: driverId })
+        }).then(r => r.json());
+
+        const data = res.data || res;
+        if (data?.access_token) {
+          driverToken = data.access_token;
+          driverUserId = data.driver?.user_id || driver.user_id;
+          logDriver(`✅ تم تفعيل السائق الحقيقي: "${driver.name}" (${driver.vehicle_plate}) وهو الآن متصل Online وجاهز.`);
+
+          // وضع علامة السائق على الخريطة
+          const lat = driver.lat ? parseFloat(driver.lat) : 36.7538;
+          const lng = driver.lng ? parseFloat(driver.lng) : 3.0588;
+          if (driverMarker) map.removeLayer(driverMarker);
+          driverMarker = L.marker([lat, lng], { icon: motoIcon }).addTo(map)
+            .bindPopup(`🏍️ السائق: ${driver.name}`).openPopup();
+        }
+      } catch (err) {
+        logDriver('❌ تعذر تفعيل توكن السائق: ' + err.message);
+      }
+    }
+
+    // تحديث رصيد المحفظة الحقيقي بعد إتمام الطلب
+    async function refreshDriverWallet() {
+      if (!selectedDriver) return;
+      try {
+        const res = await fetch(`${API_BASE}/auth/simulator/drivers`).then(r => r.json());
+        const drivers = res.data || res;
+        if (Array.isArray(drivers)) {
+          realDrivers = drivers;
+          const updated = drivers.find(d => d.driver_id === selectedDriver.driver_id);
+          if (updated) {
+            selectedDriver = updated;
+            document.getElementById('driver-wallet').innerText = `${parseFloat(updated.wallet_balance || 0).toLocaleString()} دج`;
+          }
+        }
+      } catch (e) {}
     }
 
     function connectSockets() {
@@ -352,14 +459,14 @@
         });
 
         socket.on('new_order_available', (order) => {
-          logDriver(`🔔 طلب جديد متاح: ${order.pickup_address} (${order.total_price} دج)`);
+          logDriver(`🔔 طلب جديد متاح في محيطك: ${order.pickup_address} (${order.total_price} دج)`);
           currentOrderId = order.orderId;
           document.getElementById('driver-pending-card').classList.remove('hidden');
           document.getElementById('driver-order-info').innerText = `${order.pickup_address} ➡️ ${order.total_price} دج`;
         });
 
         socket.on('order_status_changed', (data) => {
-          logClient(`📦 تحديث الحالة: ${data.status}`);
+          logClient(`📦 تحديث حالة الطلب: ${data.status}`);
           document.getElementById('active-order-status').innerText = data.status;
           if (data.status === 'delivered') {
             document.getElementById('review-section').classList.remove('hidden');
@@ -383,23 +490,17 @@
         selectPresetRoute('alger_babezzouar');
       }
 
+      if (!clientToken) {
+        logClient('⚠️ جاري محاولة إعادة الاتصال كزبون...');
+        await init();
+      }
+
       const distKm = (map.distance(pickupPoint, dropoffPoint) / 1000).toFixed(2);
       const price = (500 + parseFloat(distKm) * 150).toFixed(2);
 
-      if (isMockMode) {
-        currentOrderId = 'demo-' + Math.floor(100000 + Math.random() * 900000);
-        document.getElementById('client-order-card').classList.remove('hidden');
-        document.getElementById('active-order-id').innerText = currentOrderId;
-        document.getElementById('active-order-status').innerText = 'pending';
-        logClient(`🚀 تم إرسال الطلب وحساب السعر: ${price} دج (${distKm} كم)`);
-
-        setTimeout(() => {
-          logDriver(`🔔 طلب جديد متاح في محيطك: ${price} دج`);
-          document.getElementById('driver-pending-card').classList.remove('hidden');
-          document.getElementById('driver-order-info').innerText = `من البريد المركزي ➡️ باب الزوار (${price} دج)`;
-        }, 600);
-        return;
-      }
+      const btn = document.getElementById('btn-create-order');
+      btn.disabled = true;
+      btn.innerText = '⏳ جاري إرسال الطلب...';
 
       try {
         const res = await fetch(API_BASE + '/orders', {
@@ -415,36 +516,43 @@
             dropoff_address: 'باب الزوار، الجزائر',
             dropoff_lat: dropoffPoint.lat,
             dropoff_lng: dropoffPoint.lng,
-            notes: 'طلب تجريبي من المحاكي'
+            notes: 'طلب توصيل من المحاكي الحقيقي'
           })
         }).then(r => r.json());
 
-        if (res.data?.id) {
-          currentOrderId = res.data.id;
+        const order = res.data || res;
+
+        if (order?.id) {
+          currentOrderId = order.id;
           document.getElementById('client-order-card').classList.remove('hidden');
-          document.getElementById('active-order-id').innerText = currentOrderId.slice(0, 8);
+          document.getElementById('active-order-id').innerText = '#' + currentOrderId.slice(0, 8);
           document.getElementById('active-order-status').innerText = 'pending';
           if (socket) socket.emit('join_order', { orderId: currentOrderId });
-          logClient(`🚀 تم إنشاء الطلب سحابياً بنجاح: ${res.data.total_price} دج`);
+          logClient(`🚀 تم إنشاء الطلب الحقيقي في قاعدة البيانات: ${order.total_price} دج (#${currentOrderId.slice(0, 8)})`);
+
+          // إظهار تنبيه الطلب فوراً للسائق المختار
+          document.getElementById('driver-pending-card').classList.remove('hidden');
+          document.getElementById('driver-order-info').innerText = `${order.pickup_address} ➡️ ${order.dropoff_address} (${order.total_price} دج)`;
+          logDriver(`🔔 وصل طلب جديد إلى السائق "${selectedDriver?.name || 'السائق'}": ${order.total_price} دج`);
+        } else {
+          logClient('❌ فشل إنشاء الطلب: ' + (res.message || 'خطأ غير متوقع'));
         }
       } catch (e) {
-        logClient('❌ خطأ: ' + e);
+        logClient('❌ خطأ في الاتصال بالخادم: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📦</span> إرسال طلب التوصيل (Envoyer)';
       }
     }
 
     // 5. قبول السائق للطلب
     async function acceptDriverOrder() {
-      if (isMockMode) {
-        logDriver('✅ تم قبول الطلب رسمياً وحجزه لك!');
-        document.getElementById('driver-pending-card').classList.add('hidden');
-        document.getElementById('driver-action-card').classList.remove('hidden');
-        document.getElementById('active-order-status').innerText = 'accepted';
-        logClient('📦 قبل السائق ياسين طلبك! السائق متوجه إليك الآن.');
-
-        if (pickupPoint) {
-          if (driverMarker) map.removeLayer(driverMarker);
-          driverMarker = L.marker(pickupPoint, { icon: motoIcon }).addTo(map);
-        }
+      if (!currentOrderId) {
+        alert('لا يوجد طلب معلق حالياً');
+        return;
+      }
+      if (!driverToken) {
+        alert('يرجى اختيار سائق مسجل أولاً');
         return;
       }
 
@@ -454,20 +562,26 @@
           headers: { 'Authorization': 'Bearer ' + driverToken }
         }).then(r => r.json());
 
-        if (res.data) {
-          logDriver('✅ تم قبول الطلب رسمياً!');
+        const data = res.data || res;
+
+        if (data?.id || res.statusCode === 200 || !res.error) {
+          logDriver(`✅ قبل السائق "${selectedDriver?.name}" الطلب رسميّاً وتم ربطه بالسائق في قاعدة البيانات!`);
           document.getElementById('driver-pending-card').classList.add('hidden');
           document.getElementById('driver-action-card').classList.remove('hidden');
           document.getElementById('active-order-status').innerText = 'accepted';
+          logClient(`📦 قبل السائق "${selectedDriver?.name}" طلبك! الدراجة متوجهة إليك.`);
           if (socket) socket.emit('join_order', { orderId: currentOrderId });
 
           if (pickupPoint) {
             if (driverMarker) map.removeLayer(driverMarker);
-            driverMarker = L.marker(pickupPoint, { icon: motoIcon }).addTo(map);
+            driverMarker = L.marker(pickupPoint, { icon: motoIcon }).addTo(map)
+              .bindPopup(`🏍️ السائق: ${selectedDriver?.name}`).openPopup();
           }
+        } else {
+          logDriver('❌ خطأ في قبول الطلب: ' + (res.message || 'فشلت العملية'));
         }
       } catch (e) {
-        logDriver('❌ خطأ: ' + e);
+        logDriver('❌ خطأ في الاتصال: ' + e.message);
       }
     }
 
@@ -480,7 +594,7 @@
       
       if (driverMarker) driverMarker.setLatLng([lat, lng]);
 
-      if (socket && !isMockMode) {
+      if (socket && currentOrderId) {
         socket.emit('driver_location', {
           orderId: currentOrderId,
           driverId: driverUserId,
@@ -492,20 +606,7 @@
 
     // 7. تحديث حالة الطلب
     async function updateOrderStatus(status) {
-      if (isMockMode) {
-        logDriver('⚡ تم تحديث الحالة إلى: ' + status);
-        logClient('📦 حالة الطلب: ' + status);
-        document.getElementById('active-order-status').innerText = status;
-
-        if (status === 'delivered') {
-          document.getElementById('driver-action-card').classList.add('hidden');
-          document.getElementById('review-section').classList.remove('hidden');
-          mockWalletBalance = (mockWalletBalance - 150).toFixed(2);
-          document.getElementById('driver-wallet').innerText = mockWalletBalance + ' دج';
-          logDriver('💵 تم استلام الكاش وخصم عمولة المنصة 15% (-150 دج)');
-        }
-        return;
-      }
+      if (!currentOrderId || !driverToken) return;
 
       try {
         const res = await fetch(API_BASE + `/orders/${currentOrderId}/status`, {
@@ -517,44 +618,58 @@
           body: JSON.stringify({ status })
         }).then(r => r.json());
 
-        if (res.data) {
-          logDriver('⚡ تم تحديث الحالة إلى: ' + status);
+        const data = res.data || res;
+
+        if (data?.id || res.statusCode === 200 || !res.error) {
+          logDriver(`⚡ تم تحديث الحالة في قاعدة البيانات إلى: "${status}"`);
+          logClient(`📦 حالة الطلب الحالية: "${status}"`);
           document.getElementById('active-order-status').innerText = status;
+
           if (status === 'delivered') {
             document.getElementById('driver-action-card').classList.add('hidden');
             document.getElementById('review-section').classList.remove('hidden');
-            logDriver('💵 تم تسليم الطلب وخصم عمولة المنصة بنجاح!');
+            logDriver(`🎉 تم تسليم الطلب كاش! وتم خصم عمولة المنصة 15% من محفظة السائق ${selectedDriver?.name}.`);
+            logClient('🎉 تم استلام الطرد بنجاح! يمكنك الآن تقييم السائق.');
+            // تحديث رصيد المحفظة الحقيقي من قاعدة البيانات
+            await refreshDriverWallet();
           }
+        } else {
+          logDriver('❌ خطأ: ' + (res.message || 'فشل تحديث الحالة'));
         }
       } catch (e) {
-        logDriver('❌ خطأ: ' + e);
+        logDriver('❌ خطأ في الاتصال: ' + e.message);
       }
     }
 
     // ⚡ السيناريو التلقائي الكامل بنقرة واحدة (Auto Scenario)
     async function runAutoScenario() {
+      if (!selectedDriver) {
+        alert('⚠️ يرجى اختيار سائق من القائمة أولاً لتشغيل السيناريو به.');
+        return;
+      }
+
       const btn = document.getElementById('btn-auto-scenario');
       btn.disabled = true;
-      btn.innerText = '⏳ جاري تشغيل المحاكاة الحية...';
+      btn.innerText = `⏳ جاري محاكاة السيناريو بالسائق "${selectedDriver.name}"...`;
 
-      // 1. تحديد المسار
+      // 1. مسار تجريبي
       selectPresetRoute('alger_babezzouar');
       await new Promise(r => setTimeout(r, 600));
 
-      // 2. إرسال الطلب
+      // 2. إرسال طلب حقيقي للباك إند
       await createOrder();
       await new Promise(r => setTimeout(r, 1200));
 
-      // 3. قبول السائق للطلب
+      // 3. قبول السائق المختار للطلب
       await acceptDriverOrder();
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 900));
 
       // 4. استلام الطرد
       await updateOrderStatus('picked_up');
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 700));
 
-      // 5. قيادة الدراجة على الخريطة بسلاسة
-      logDriver('🛵 الدراجة النارية تنطلق الآن على الطريق نحو نقطة التسليم...');
+      // 5. قيادة الدراجة ومحاكاة التحرك
+      logDriver(`🛵 السائق "${selectedDriver.name}" ينطلق الآن على الخريطة نحو نقطة التسليم...`);
       let prog = 0;
       clearInterval(autoSimTimer);
       autoSimTimer = setInterval(async () => {
@@ -566,7 +681,7 @@
           await updateOrderStatus('delivered');
           btn.disabled = false;
           btn.innerHTML = '<span>🚀</span> تشغيل سيناريو كامل بنقرة واحدة (1-Clic)';
-          logClient('🎉 اكتملت رحلة التوصيل بنجاح تام بنقرة واحدة!');
+          logClient(`🎉 اكتملت رحلة التوصيل بنجاح تام بالسائق "${selectedDriver.name}"!`);
         }
       }, 350);
     }

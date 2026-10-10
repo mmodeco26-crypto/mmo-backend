@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -130,6 +131,102 @@ export class AuthService {
       [fcmToken, userId],
     );
     return { message: 'تم تحديث رمز الإشعارات' };
+  }
+
+  // ─── محاكي الفحص المباشر (Simulator Helpers) ──────────────────────────────
+  /**
+   * جلب قائمة جميع السائقين الحقيقيين المسجلين في المنصة لاستخدامهم في المحاكي
+   */
+  async getSimulatorDrivers() {
+    return this.db.query(
+      `SELECT d.id AS driver_id, d.user_id, u.name, u.phone, d.vehicle_plate,
+              d.is_online, d.is_verified, d.kyc_status, d.current_rating,
+              COALESCE(w.balance, 0.00) AS wallet_balance,
+              COALESCE(w.debt_limit, 3000.00) AS debt_limit,
+              COALESCE(d.lat, 36.7538) AS lat,
+              COALESCE(d.lng, 3.0588) AS lng
+       FROM drivers d
+       JOIN users u ON u.id = d.user_id
+       LEFT JOIN wallets w ON w.user_id = d.user_id
+       WHERE u.is_active = TRUE
+       ORDER BY d.created_at DESC`,
+    );
+  }
+
+  /**
+   * توليد JWT Token حقيقي لأي سائق مسجل اختاره المستخدم لتجربة المحاكي به
+   */
+  async getSimulatorDriverToken(driverId: string) {
+    const [driver] = await this.db.query(
+      `SELECT d.id AS driver_id, d.user_id, u.name, u.phone, u.role, d.vehicle_plate,
+              d.kyc_status, d.is_verified,
+              COALESCE(w.balance, 0.00) AS wallet_balance
+       FROM drivers d
+       JOIN users u ON u.id = d.user_id
+       LEFT JOIN wallets w ON w.user_id = d.user_id
+       WHERE (d.id = $1 OR d.user_id = $1) AND u.is_active = TRUE`,
+      [driverId],
+    );
+
+    if (!driver) {
+      throw new NotFoundException('السائق المختار غير موجود أو حسابه غير نشط');
+    }
+
+    // تفعيل السائق وضمان وجود موقع جغرافي ليكون مؤهلاً لاستقبال وقبول الطلبات
+    await this.db.query(
+      `UPDATE drivers 
+       SET is_online = TRUE,
+           location = COALESCE(location, ST_SetSRID(ST_MakePoint(3.0588, 36.7538), 4326)::geography),
+           lat = COALESCE(lat, 36.7538),
+           lng = COALESCE(lng, 3.0588),
+           last_seen_at = NOW()
+       WHERE user_id = $1`,
+      [driver.user_id],
+    );
+
+    // ضمان وجود محفظة مالية للسائق
+    await this.db.query(
+      `INSERT INTO wallets (user_id, balance, debt_limit, currency)
+       VALUES ($1, 0.00, 3000.00, 'DZD')
+       ON CONFLICT (user_id) DO NOTHING`,
+      [driver.user_id],
+    );
+
+    const token = this._signToken({
+      id: driver.user_id,
+      role: 'driver',
+      phone: driver.phone,
+    });
+
+    return {
+      driver,
+      access_token: token,
+    };
+  }
+
+  /**
+   * توليد JWT Token حقيقي لزبون حقيقي لإرسال الطلبات في المحاكي
+   */
+  async getSimulatorClientToken() {
+    let [client] = await this.db.query(
+      `SELECT id, name, phone, role FROM users WHERE role = 'client' AND is_active = TRUE ORDER BY created_at DESC LIMIT 1`,
+    );
+
+    if (!client) {
+      const hashedPassword = await bcrypt.hash('Client123!', 10);
+      [client] = await this.db.query(
+        `INSERT INTO users (name, phone, password, role, is_active)
+         VALUES ('زبون تجريبي (Client)', '0550000001', $1, 'client', TRUE)
+         RETURNING id, name, phone, role`,
+        [hashedPassword],
+      );
+    }
+
+    const token = this._signToken(client);
+    return {
+      client,
+      access_token: token,
+    };
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
