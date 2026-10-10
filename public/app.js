@@ -1274,7 +1274,7 @@ function App() {
   }, /*#__PURE__*/React.createElement("header", {
     className: "sticky top-0 z-40 glass-card border-b border-slate-800/80 px-4 lg:px-6 py-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3"
+    className: "max-w-[1600px] mx-auto w-full flex flex-wrap items-center justify-between gap-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2065,7 +2065,7 @@ function AdminDashboardView({
   switchToSimulator
 }) {
   return /*#__PURE__*/React.createElement("main", {
-    className: "flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6 space-y-6"
+    className: "flex-1 max-w-[1600px] mx-auto w-full p-3 sm:p-5 lg:p-6 space-y-5"
   }, /*#__PURE__*/React.createElement("section", {
     className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2335,51 +2335,51 @@ function AdminDashboardView({
   }].map(tab => /*#__PURE__*/React.createElement("button", {
     key: tab.id,
     onClick: () => setAdminTab(tab.id),
-    className: `px-5 py-4 font-bold text-xs lg:text-sm border-b-2 transition whitespace-nowrap flex items-center gap-2 ${adminTab === tab.id ? 'border-amber-400 text-amber-400 bg-slate-800/40' : 'border-transparent text-slate-400 hover:text-slate-200'}`
+    className: `px-3.5 py-2.5 font-bold text-xs border-b-2 transition whitespace-nowrap flex items-center gap-1.5 ${adminTab === tab.id ? 'border-amber-400 text-amber-400 bg-slate-800/40' : 'border-transparent text-slate-400 hover:text-slate-200'}`
   }, /*#__PURE__*/React.createElement("span", null, tab.label), tab.count !== undefined && /*#__PURE__*/React.createElement("span", {
-    className: `px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${adminTab === tab.id ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}`
+    className: `px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${adminTab === tab.id ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-800 text-slate-400'}`
   }, tab.count)))), adminTab === 'drivers' && /*#__PURE__*/React.createElement("div", {
     className: "p-5 space-y-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100"
+    className: "font-bold text-xs text-slate-100"
   }, "\u0623\u0633\u0637\u0648\u0644 \u062F\u0631\u0627\u062C\u0627\u062A \u0627\u0644\u062A\u0648\u0635\u064A\u0644 (Livreurs DZ)"), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
+    className: "text-[11px] text-slate-400 mt-0.5"
   }, "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u062A\u0648\u0627\u062C\u062F\u060C \u0627\u0644\u0645\u062D\u0627\u0641\u0638 \u0627\u0644\u0645\u0627\u0644\u064A\u0629\u060C \u0634\u062D\u0646 \u0627\u0644\u0623\u0631\u0635\u062F\u0629\u060C \u0648\u062A\u0633\u0648\u064A\u0629 \u062F\u064A\u0648\u0646 \u0627\u0644\u0645\u0646\u0635\u0629")), /*#__PURE__*/React.createElement("button", {
     onClick: openAddDriverModal,
-    className: "px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
+    className: "px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition shadow-lg shadow-amber-500/20 flex items-center gap-1.5"
   }, /*#__PURE__*/React.createElement(Icons.Plus, {
-    size: 16
+    size: 14
   }), /*#__PURE__*/React.createElement("span", null, "\u0625\u0636\u0627\u0641\u0629 \u0633\u0627\u0626\u0642 \u062C\u062F\u064A\u062F (Ajouter Livreur)"))), /*#__PURE__*/React.createElement("div", {
     className: "overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
-    className: "w-full text-right text-sm"
+    className: "w-full text-right text-xs"
   }, /*#__PURE__*/React.createElement("thead", {
-    className: "text-xs text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
+    className: "text-[11px] text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
   }, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0633\u0627\u0626\u0642"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0647\u0627\u062A\u0641"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0645\u0631\u0643\u0628\u0629 \u0648\u0627\u0644\u0644\u0648\u062D\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u062A\u0642\u064A\u064A\u0645"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0631\u0635\u064A\u062F \u0627\u0644\u0645\u062D\u0641\u0638\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u062D\u0627\u0644\u0629 \u0648\u0627\u0644\u062A\u0648\u062B\u064A\u0642"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, "\u0627\u0644\u0625\u062C\u0631\u0627\u0621\u0627\u062A"))), /*#__PURE__*/React.createElement("tbody", {
     className: "divide-y divide-slate-800/60 text-xs"
   }, drivers.map(d => /*#__PURE__*/React.createElement("tr", {
     key: d.id,
     className: "hover:bg-slate-800/40 transition"
   }, /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "font-bold text-slate-100 flex items-center gap-2"
+    className: "font-bold text-slate-100 flex items-center gap-1.5"
   }, /*#__PURE__*/React.createElement("span", {
     className: "w-2 h-2 rounded-full",
     style: {
@@ -2388,30 +2388,30 @@ function AdminDashboardView({
   }), /*#__PURE__*/React.createElement("span", null, d.name)), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-slate-500 font-mono"
   }, "\u0627\u0646\u0636\u0645: ", d.joined_date)), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono"
+    className: "py-2 px-3 font-mono"
   }, /*#__PURE__*/React.createElement("a", {
     href: `tel:${d.phone}`,
-    className: "text-slate-300 hover:text-amber-400 flex items-center gap-1"
+    className: "text-slate-300 hover:text-amber-400 flex items-center gap-1 text-[11px]"
   }, /*#__PURE__*/React.createElement(Icons.Phone, {
-    size: 12
+    size: 11
   }), " ", d.phone)), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono"
+    className: "py-2 px-3 font-mono"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "text-slate-200 font-semibold"
+    className: "text-slate-200 font-semibold text-[11px]"
   }, d.vehicle_model), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-amber-400"
   }, d.vehicle_plate)), /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("span", {
-    className: "font-mono font-bold text-amber-400"
+    className: "font-mono font-bold text-amber-400 text-xs"
   }, "\u2B50 ", d.rating), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-slate-500 block"
   }, "(", d.total_deliveries, " \u0631\u062D\u0644\u0629)")), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono font-bold"
+    className: "py-2 px-3 font-mono font-bold text-xs"
   }, /*#__PURE__*/React.createElement("span", {
     className: d.wallet_balance < 0 ? 'text-rose-400' : 'text-emerald-400'
   }, d.wallet_balance.toFixed(2), " DZD")), /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-1"
   }, /*#__PURE__*/React.createElement("span", {
@@ -2419,12 +2419,12 @@ function AdminDashboardView({
   }, d.is_online ? 'متصل 🟢' : 'غير متصل ⚪'), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-slate-400"
   }, d.kyc_status === 'approved' ? 'موثق ✅' : d.kyc_status === 'suspended' ? 'مجمّد ⏸️' : 'معلق 📑'))), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center justify-center gap-1.5 flex-wrap"
+    className: "flex items-center justify-center gap-1 flex-wrap"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => openRechargeWalletModal(d),
-    className: "px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold transition flex items-center gap-1"
+    className: "px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold text-[11px] transition flex items-center gap-1"
   }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDCB5"), " \u0634\u062D\u0646"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       setDrivers(curr => curr.map(x => x.id === d.id ? {
@@ -2432,7 +2432,7 @@ function AdminDashboardView({
         is_online: !x.is_online
       } : x));
     },
-    className: "px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold transition"
+    className: "px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-[11px] transition"
   }, d.is_online ? 'إيقاف ⏸️' : 'تفعيل 🟢'), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDeleteDriver(d),
     className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
@@ -2444,51 +2444,51 @@ function AdminDashboardView({
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100"
+    className: "font-bold text-xs text-slate-100"
   }, "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0632\u0628\u0627\u0626\u0646 \u0648\u0627\u0644\u0639\u0645\u0644\u0627\u0621 (Clients DZ)"), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
+    className: "text-[11px] text-slate-400 mt-0.5"
   }, "\u0633\u062C\u0644 \u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0632\u0628\u0627\u0626\u0646\u060C \u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0645\u0635\u0627\u0631\u064A\u0641\u060C \u0648\u062D\u0638\u0631 \u0623\u0648 \u062D\u0630\u0641 \u0627\u0644\u062D\u0633\u0627\u0628\u0627\u062A")), /*#__PURE__*/React.createElement("button", {
     onClick: openAddClientModal,
-    className: "px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs transition shadow-lg shadow-sky-500/20 flex items-center gap-1.5"
+    className: "px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs transition shadow-lg shadow-sky-500/20 flex items-center gap-1.5"
   }, /*#__PURE__*/React.createElement(Icons.Plus, {
-    size: 16
+    size: 14
   }), /*#__PURE__*/React.createElement("span", null, "\u0625\u0636\u0627\u0641\u0629 \u0632\u0628\u0648\u0646 (Ajouter Client)"))), /*#__PURE__*/React.createElement("div", {
     className: "overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
-    className: "w-full text-right text-sm"
+    className: "w-full text-right text-xs"
   }, /*#__PURE__*/React.createElement("thead", {
-    className: "text-xs text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
+    className: "text-[11px] text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
   }, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0633\u0645 \u0627\u0644\u0632\u0628\u0648\u0646"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062A\u0641"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0639\u062F\u062F \u0627\u0644\u0637\u0644\u0628\u0627\u062A"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0625\u0646\u0641\u0627\u0642"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u062D\u0627\u0644\u0629 \u0627\u0644\u062D\u0633\u0627\u0628"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, "\u0627\u0644\u062A\u062D\u0643\u0645"))), /*#__PURE__*/React.createElement("tbody", {
     className: "divide-y divide-slate-800/60 text-xs"
   }, clients.map(c => /*#__PURE__*/React.createElement("tr", {
     key: c.id,
     className: "hover:bg-slate-800/40 transition"
   }, /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-bold text-slate-100"
+    className: "py-2 px-3 font-bold text-slate-100"
   }, c.name), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-slate-300"
+    className: "py-2 px-3 font-mono text-slate-300 text-[11px]"
   }, c.phone), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono font-bold text-amber-400"
+    className: "py-2 px-3 font-mono font-bold text-amber-400 text-xs"
   }, c.total_orders, " \u0637\u0644\u0628"), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono font-bold text-emerald-400"
+    className: "py-2 px-3 font-mono font-bold text-emerald-400 text-xs"
   }, c.total_spent.toLocaleString(), " DZD"), /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("span", {
     className: `px-2 py-0.5 rounded-full text-[10px] font-bold ${c.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`
   }, c.is_active ? 'نشط ✅' : 'محظور 🚫')), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center justify-center gap-1.5"
   }, /*#__PURE__*/React.createElement("button", {
@@ -2498,7 +2498,7 @@ function AdminDashboardView({
         is_active: !x.is_active
       } : x));
     },
-    className: "px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-xs transition"
+    className: "px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-[11px] transition"
   }, c.is_active ? 'حظر 🚫' : 'تنشيط 🔓'), /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDeleteClient(c),
     className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
@@ -2510,63 +2510,65 @@ function AdminDashboardView({
   }, /*#__PURE__*/React.createElement("div", {
     className: "pb-3 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100"
+    className: "font-bold text-xs text-slate-100"
   }, "\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u062A\u0648\u062B\u064A\u0642 \u0648\u0627\u0639\u062A\u0645\u0627\u062F \u0631\u062E\u0635 \u0627\u0644\u0633\u064A\u0627\u0642\u0629 (KYC)"), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
+    className: "text-[11px] text-slate-400 mt-0.5"
   }, "\u062A\u062F\u0642\u064A\u0642 \u0631\u062E\u0635 \u0627\u0644\u0633\u064A\u0627\u0642\u0629 \u0627\u0644\u0628\u064A\u0648\u0645\u062A\u0631\u064A\u0629 \u0627\u0644\u062C\u0632\u0627\u0626\u0631\u064A\u0629 \u0648\u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0631\u0645\u0627\u062F\u064A\u0629 \u0644\u0644\u0645\u0631\u0643\u0628\u0627\u062A")), /*#__PURE__*/React.createElement("div", {
     className: "overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
-    className: "w-full text-right text-sm"
+    className: "w-full text-right text-xs"
   }, /*#__PURE__*/React.createElement("thead", {
-    className: "text-xs text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
+    className: "text-[11px] text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
   }, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0633\u0627\u0626\u0642"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0647\u0627\u062A\u0641"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0645\u0631\u0643\u0628\u0629 \u0648\u0627\u0644\u0644\u0648\u062D\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0631\u0642\u0645 \u0627\u0644\u0631\u062E\u0635\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u062A\u0642\u062F\u064A\u0645"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u062D\u0627\u0644\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, "\u0642\u0631\u0627\u0631 \u0627\u0644\u0625\u062F\u0627\u0631\u0629"))), /*#__PURE__*/React.createElement("tbody", {
     className: "divide-y divide-slate-800/60 text-xs"
   }, kycRequests.map(k => /*#__PURE__*/React.createElement("tr", {
     key: k.id,
     className: "hover:bg-slate-800/40 transition"
   }, /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-bold text-slate-100"
+    className: "py-2 px-3 font-bold text-slate-100"
   }, k.driver_name), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-slate-300"
+    className: "py-2 px-3 font-mono text-slate-300 text-[11px]"
   }, k.phone), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono"
-  }, /*#__PURE__*/React.createElement("div", null, k.vehicle_model), /*#__PURE__*/React.createElement("span", {
+    className: "py-2 px-3 font-mono"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-[11px] text-slate-200"
+  }, k.vehicle_model), /*#__PURE__*/React.createElement("span", {
     className: "text-[10px] text-amber-400"
   }, k.vehicle_plate)), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-sky-400"
+    className: "py-2 px-3 font-mono text-sky-400 text-xs"
   }, k.license_number), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-slate-400"
+    className: "py-2 px-3 font-mono text-slate-400 text-[11px]"
   }, k.submission_date), /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("span", {
     className: `px-2 py-0.5 rounded-full text-[10px] font-bold ${k.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : k.status === 'rejected' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`
   }, k.status === 'approved' ? 'معتمد ✅' : k.status === 'rejected' ? 'مرفوض ❌' : 'قيد التدقيق ⏳')), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => openInspectKYCModal(k),
-    className: "px-3 py-1 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold transition flex items-center gap-1 mx-auto"
+    className: "px-2.5 py-1 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs transition flex items-center gap-1 mx-auto"
   }, /*#__PURE__*/React.createElement("span", null, "\uD83D\uDD0D \u0641\u062D\u0635 \u0627\u0644\u0648\u062B\u0627\u0626\u0642"))))))))), adminTab === 'orders' && /*#__PURE__*/React.createElement("div", {
     className: "p-5 space-y-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100"
+    className: "font-bold text-xs text-slate-100"
   }, "\u0633\u062C\u0644 \u0623\u062D\u062F\u062B \u0627\u0644\u0637\u0644\u0628\u0627\u062A \u0627\u0644\u0645\u0646\u0641\u0630\u0629 \u0648\u0627\u0644\u0625\u0631\u0633\u0627\u0644\u064A\u0627\u062A"), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
+    className: "text-[11px] text-slate-400"
   }, "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0623\u0633\u0639\u0627\u0631\u060C \u062A\u0637\u0628\u064A\u0642 \u0623\u0643\u0648\u0627\u062F \u0627\u0644\u062E\u0635\u0645\u060C \u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u062D\u0627\u0644\u0627\u062A\u060C \u0648\u062D\u0630\u0641 \u0627\u0644\u0637\u0644\u0628\u0627\u062A")), /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("div", {
@@ -2583,25 +2585,25 @@ function AdminDashboardView({
   }, "\u2715")))), /*#__PURE__*/React.createElement("div", {
     className: "overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
-    className: "w-full text-right text-sm"
+    className: "w-full text-right text-xs"
   }, /*#__PURE__*/React.createElement("thead", {
-    className: "text-xs text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
+    className: "bg-slate-850/60 uppercase border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u0632\u0628\u0648\u0646"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u0633\u0627\u0626\u0642"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0645\u0633\u0627\u0631 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 (Trajet)"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0635\u0627\u0641\u064A"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u062E\u0635\u0645 / \u0627\u0644\u0628\u0631\u0648\u0645\u0648"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u062D\u0627\u0644\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider"
   }, "\u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u0627\u0644\u0625\u062C\u0631\u0627\u0621\u0627\u062A"))), /*#__PURE__*/React.createElement("tbody", {
     className: "divide-y divide-slate-800/60 text-xs"
   }, orders.map(o => {
@@ -2625,15 +2627,15 @@ function AdminDashboardView({
       key: o.id,
       className: "hover:bg-slate-800/40 transition"
     }, /*#__PURE__*/React.createElement("td", {
-      className: "p-3 font-mono font-bold text-amber-400"
+      className: "py-2 px-3 font-mono font-bold text-amber-400"
     }, "#", o.id.slice(0, 8)), /*#__PURE__*/React.createElement("td", {
-      className: "p-3"
+      className: "py-2 px-3"
     }, /*#__PURE__*/React.createElement("div", {
       className: "font-bold text-slate-100"
     }, o.client_name), /*#__PURE__*/React.createElement("span", {
       className: "text-[10px] text-slate-400 font-mono"
     }, o.client_phone)), /*#__PURE__*/React.createElement("td", {
-      className: "p-3"
+      className: "py-2 px-3"
     }, o.driver_name ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       className: "font-bold text-slate-200"
     }, o.driver_name), /*#__PURE__*/React.createElement("span", {
@@ -2641,45 +2643,45 @@ function AdminDashboardView({
     }, o.driver_phone)) : /*#__PURE__*/React.createElement("span", {
       className: "text-slate-500 italic"
     }, "\u0644\u0645 \u064A\u0642\u0628\u0644 \u0628\u0639\u062F")), /*#__PURE__*/React.createElement("td", {
-      className: "p-3 max-w-xs truncate text-slate-300"
+      className: "py-2 px-3 max-w-xs truncate text-slate-300"
     }, /*#__PURE__*/React.createElement("span", null, o.pickup_address), " ", /*#__PURE__*/React.createElement("span", {
       className: "text-amber-400 font-bold"
     }, "\u27A1\uFE0F"), " ", /*#__PURE__*/React.createElement("span", null, o.dropoff_address), /*#__PURE__*/React.createElement("span", {
       className: "block text-[10px] text-slate-500 font-mono"
     }, "(", o.distance_km, " \u0643\u0645)")), /*#__PURE__*/React.createElement("td", {
-      className: "p-3 font-mono font-bold text-emerald-400 text-sm"
+      className: "py-2 px-3 font-mono font-bold text-emerald-400 text-xs"
     }, o.total_price.toFixed(2), " DZD"), /*#__PURE__*/React.createElement("td", {
-      className: "p-3 font-mono"
+      className: "py-2 px-3 font-mono"
     }, o.promo_code ? /*#__PURE__*/React.createElement("span", {
       className: "px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold"
     }, "\uD83C\uDF9F\uFE0F ", o.promo_code, " (-", o.discount_amount, " DZD)") : /*#__PURE__*/React.createElement("span", {
       className: "text-slate-600"
     }, "-")), /*#__PURE__*/React.createElement("td", {
-      className: "p-3"
+      className: "py-2 px-3"
     }, /*#__PURE__*/React.createElement("span", {
-      className: `px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusColors[o.status] || 'bg-slate-800 text-slate-300'}`
+      className: `px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColors[o.status] || 'bg-slate-800 text-slate-300'}`
     }, statusLabels[o.status] || o.status)), /*#__PURE__*/React.createElement("td", {
-      className: "p-3 text-center"
+      className: "py-2 px-3 text-center"
     }, /*#__PURE__*/React.createElement("div", {
       className: "flex items-center justify-center gap-1.5 flex-wrap"
     }, o.status !== 'delivered' && o.status !== 'cancelled' && /*#__PURE__*/React.createElement("button", {
       onClick: () => handleStepOrderStatus(o.id),
-      className: "px-2 py-1 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-500/30 font-bold transition flex items-center gap-1",
+      className: "px-2 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 border border-sky-500/30 font-bold transition flex items-center gap-1 text-[11px]",
       title: "\u062A\u0631\u0642\u064A\u0629 \u062D\u0627\u0644\u0629 \u0627\u0644\u0637\u0644\u0628 \u062E\u0637\u0648\u0629 \u0648\u0627\u062D\u062F\u0629"
     }, /*#__PURE__*/React.createElement("span", null, "\u23ED\uFE0F \u062A\u0631\u0642\u064A\u0629")), /*#__PURE__*/React.createElement("button", {
       onClick: () => openEditPriceModal(o.id, o.total_price),
-      className: "px-2 py-1 rounded-lg bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 border border-amber-500/30 font-bold transition flex items-center gap-1",
+      className: "px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 border border-amber-500/30 font-bold transition flex items-center gap-1 text-[11px]",
       title: "\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0633\u0639\u0631"
     }, /*#__PURE__*/React.createElement("span", null, "\u270F\uFE0F"), " \u0633\u0639\u0631"), /*#__PURE__*/React.createElement("button", {
       onClick: () => openApplyPromoModal(o.id, o.total_price),
-      className: "px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold transition flex items-center gap-1",
+      className: "px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30 font-bold transition flex items-center gap-1 text-[11px]",
       title: "\u062A\u0637\u0628\u064A\u0642 \u0628\u0631\u0648\u0645\u0648"
     }, /*#__PURE__*/React.createElement("span", null, "\uD83C\uDFF7\uFE0F"), " \u0628\u0631\u0648\u0645\u0648"), /*#__PURE__*/React.createElement("button", {
       onClick: () => handleDeleteOrder(o.id),
       className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
       title: "\u062D\u0630\u0641 \u0627\u0644\u0637\u0644\u0628"
     }, /*#__PURE__*/React.createElement(Icons.Trash2, {
-      size: 14
+      size: 13
     })))));
   }))))), adminTab === 'settings' && /*#__PURE__*/React.createElement("div", {
     className: "p-5 space-y-6"
@@ -2688,14 +2690,14 @@ function AdminDashboardView({
   }, /*#__PURE__*/React.createElement("div", {
     className: "glass-card-subtle rounded-2xl p-5 border border-slate-700/60 space-y-4"
   }, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100 flex items-center gap-2"
+    className: "font-bold text-xs text-slate-100 flex items-center gap-2"
   }, /*#__PURE__*/React.createElement(Icons.Sliders, {
-    size: 18,
+    size: 16,
     className: "text-amber-400"
   }), /*#__PURE__*/React.createElement("span", null, "\u0625\u0639\u062F\u0627\u062F\u0627\u062A \u0627\u0644\u062A\u0633\u0639\u064A\u0631\u0629 \u0648\u0639\u0645\u0648\u0644\u0629 \u0627\u0644\u062A\u0637\u0628\u064A\u0642 (Tarification DZ)")), /*#__PURE__*/React.createElement("div", {
     className: "grid grid-cols-2 gap-3 text-xs"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "text-slate-400 block mb-1"
+    className: "text-slate-400 block mb-1 text-[11px]"
   }, "\u0641\u062A\u062D \u0627\u0644\u0639\u062F\u0627\u062F (Base Fare):"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: settings.base_fee,
@@ -2705,7 +2707,7 @@ function AdminDashboardView({
     }),
     className: "w-full bg-slate-850 border border-slate-700 rounded-xl px-3 py-2 font-mono font-bold text-amber-400"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "text-slate-400 block mb-1"
+    className: "text-slate-400 block mb-1 text-[11px]"
   }, "\u0633\u0639\u0631 \u0627\u0644\u0643\u064A\u0644\u0648\u0645\u062A\u0631 (DZD/km):"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: settings.per_km_rate,
@@ -2715,7 +2717,7 @@ function AdminDashboardView({
     }),
     className: "w-full bg-slate-850 border border-slate-700 rounded-xl px-3 py-2 font-mono font-bold text-amber-400"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "text-slate-400 block mb-1"
+    className: "text-slate-400 block mb-1 text-[11px]"
   }, "\u0646\u0633\u0628\u0629 \u0639\u0645\u0648\u0644\u0629 \u0627\u0644\u0645\u0646\u0635\u0629 (%):"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: settings.commission_rate,
@@ -2725,7 +2727,7 @@ function AdminDashboardView({
     }),
     className: "w-full bg-slate-850 border border-slate-700 rounded-xl px-3 py-2 font-mono font-bold text-emerald-400"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    className: "text-slate-400 block mb-1"
+    className: "text-slate-400 block mb-1 text-[11px]"
   }, "\u0633\u0642\u0641 \u062F\u064A\u0648\u0646 \u0627\u0644\u0633\u0627\u0626\u0642 (DZD):"), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: settings.default_debt_limit,
@@ -2739,9 +2741,9 @@ function AdminDashboardView({
   }, "\uD83D\uDCA1 \u0645\u0639\u0627\u062F\u0644\u0629 \u062D\u0633\u0627\u0628 \u0627\u0644\u0633\u0639\u0631 \u0627\u0644\u0645\u0639\u062A\u0645\u062F\u0629: ", /*#__PURE__*/React.createElement("strong", null, settings.base_fee, " DZD (\u0641\u062A\u062D \u0639\u062F\u0627\u062F) + (\u0627\u0644\u0645\u0633\u0627\u0641\u0629 \u0643\u0645 \xD7 ", settings.per_km_rate, " DZD)"))), /*#__PURE__*/React.createElement("div", {
     className: "glass-card-subtle rounded-2xl p-5 border border-slate-700/60 space-y-4"
   }, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100 flex items-center gap-2"
+    className: "font-bold text-xs text-slate-100 flex items-center gap-2"
   }, /*#__PURE__*/React.createElement(Icons.Tag, {
-    size: 18,
+    size: 16,
     className: "text-emerald-400"
   }), /*#__PURE__*/React.createElement("span", null, "\u0623\u0643\u0648\u0627\u062F \u0627\u0644\u062E\u0635\u0645 \u0648\u0627\u0644\u0639\u0631\u0648\u0636 \u0627\u0644\u062A\u0631\u0648\u064A\u062C\u064A\u0629 \u0627\u0644\u0646\u0634\u0637\u0629")), /*#__PURE__*/React.createElement("div", {
     className: "space-y-2"
@@ -2759,57 +2761,57 @@ function AdminDashboardView({
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h4", {
-    className: "font-bold text-sm text-slate-100"
+    className: "font-bold text-xs text-slate-100"
   }, "\u0641\u0631\u064A\u0642 \u0627\u0644\u0639\u0645\u0644 \u0648\u0627\u0644\u0648\u0643\u0644\u0627\u0621 \u0627\u0644\u0645\u0634\u0631\u0641\u064A\u0646 (Staff & Admins)"), /*#__PURE__*/React.createElement("p", {
-    className: "text-xs text-slate-400"
+    className: "text-[11px] text-slate-400 mt-0.5"
   }, "\u0625\u062F\u0627\u0631\u0629 \u062D\u0633\u0627\u0628\u0627\u062A \u0627\u0644\u0645\u0634\u0631\u0641\u064A\u0646\u060C \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0648\u0635\u0648\u0644\u060C \u0648\u0625\u0635\u062F\u0627\u0631 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062F\u062E\u0648\u0644")), /*#__PURE__*/React.createElement("button", {
     onClick: openAddAgentModal,
-    className: "px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs transition shadow-lg shadow-indigo-500/20 flex items-center gap-1.5"
+    className: "px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs transition shadow-lg shadow-indigo-500/20 flex items-center gap-1.5"
   }, /*#__PURE__*/React.createElement(Icons.Plus, {
-    size: 16
+    size: 14
   }), /*#__PURE__*/React.createElement("span", null, "\u0625\u0636\u0627\u0641\u0629 \u0648\u0643\u064A\u0644 \u062C\u062F\u064A\u062F (Ajouter Agent)"))), /*#__PURE__*/React.createElement("div", {
     className: "overflow-x-auto"
   }, /*#__PURE__*/React.createElement("table", {
-    className: "w-full text-right text-sm"
+    className: "w-full text-right text-xs"
   }, /*#__PURE__*/React.createElement("thead", {
-    className: "text-xs text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
+    className: "text-[11px] text-slate-400 bg-slate-850/60 uppercase border-b border-slate-800 font-bold"
   }, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0633\u0645 \u0627\u0644\u0648\u0643\u064A\u0644"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0647\u0627\u062A\u0641 (Login)"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0628\u0631\u064A\u062F \u0627\u0644\u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u0635\u0644\u0627\u062D\u064A\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, "\u0627\u0644\u062D\u0627\u0644\u0629"), /*#__PURE__*/React.createElement("th", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, "\u0627\u0644\u062A\u062D\u0643\u0645"))), /*#__PURE__*/React.createElement("tbody", {
     className: "divide-y divide-slate-800/60 text-xs"
   }, agents.map(ag => /*#__PURE__*/React.createElement("tr", {
     key: ag.id,
     className: "hover:bg-slate-800/40 transition"
   }, /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-bold text-slate-100"
+    className: "py-2 px-3 font-bold text-slate-100"
   }, ag.name), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-amber-400 font-bold"
+    className: "py-2 px-3 font-mono text-amber-400 font-bold"
   }, ag.phone), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono text-slate-300"
+    className: "py-2 px-3 font-mono text-slate-300 text-[11px]"
   }, ag.email), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 font-mono"
+    className: "py-2 px-3 font-mono"
   }, /*#__PURE__*/React.createElement("span", {
     className: "px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
   }, ag.role === 'admin' ? '👑 مدير عام (Admin)' : '🎧 وكيل عمليات (Agent)')), /*#__PURE__*/React.createElement("td", {
-    className: "p-3"
+    className: "py-2 px-3"
   }, /*#__PURE__*/React.createElement("span", {
-    className: "text-emerald-400 font-bold text-xs"
+    className: "text-emerald-400 font-bold text-[11px]"
   }, "\u0646\u0634\u0637 \u2705")), /*#__PURE__*/React.createElement("td", {
-    className: "p-3 text-center"
+    className: "py-2 px-3 text-center"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => handleDeleteAgent(ag),
     className: "p-1 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/30 transition",
-    title: "حذف حساب الوكيل"
+    title: "\u062D\u0630\u0641 \u062D\u0633\u0627\u0628 \u0627\u0644\u0648\u0643\u064A\u0644"
   }, /*#__PURE__*/React.createElement(Icons.Trash2, {
     size: 14
   })))))))))));
@@ -2849,7 +2851,7 @@ function SimulatorView({
   onDeliverCash
 }) {
   return /*#__PURE__*/React.createElement("main", {
-    className: "flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6 space-y-4"
+    className: "flex-1 max-w-[1600px] mx-auto w-full p-3 sm:p-5 lg:p-6 space-y-4"
   }, /*#__PURE__*/React.createElement("div", {
     className: "glass-card rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center justify-between gap-4"
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
