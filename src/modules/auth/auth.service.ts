@@ -111,9 +111,8 @@ export class AuthService {
       throw new UnauthorizedException('هذا الحساب معطّل، تواصل مع الدعم');
     }
 
-    const isValid = (await bcrypt.compare(dto.password, user.password))
-      || (user.role === 'admin' && (dto.password === 'admin' || dto.password === 'admin123' || dto.password === 'Password123!'))
-      || (user.role === 'agent' && (dto.password === 'agent' || dto.password === 'agent123' || dto.password === 'Agent123!'));
+    // التحقق الأمني الصارم: مطابقة كلمة المرور المشفرة فقط عبر bcrypt
+    const isValid = await bcrypt.compare(dto.password, user.password);
 
     if (!isValid) {
       throw new UnauthorizedException('رقم الهاتف أو كلمة المرور غير صحيحة');
