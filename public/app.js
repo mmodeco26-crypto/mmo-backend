@@ -1105,6 +1105,19 @@ function App() {
     return simPathPoints[index];
   }, [simPathPoints, simProgress, simPickup]);
 
+  // Dynamic price calculation in simulator (real driving road distance)
+  const simDistanceKm = useMemo(() => {
+    if (roadRouteData && roadRouteData.roadDistanceKm) {
+      return roadRouteData.roadDistanceKm;
+    }
+    return getDistanceKm(simPickup.coords, simDropoff.coords);
+  }, [roadRouteData, simPickup, simDropoff]);
+  const simCalculatedPrice = useMemo(() => {
+    const base = settings.base_fee;
+    const distanceFare = simDistanceKm * settings.per_km_rate;
+    return Number((base + distanceFare).toFixed(2));
+  }, [simDistanceKm, settings]);
+
   // بث موقع السائق فوراً لتطبيق الزبون عند تحرك الدراجة في المحاكي
   useEffect(() => {
     if (!currentSimBikeCoord) return;
@@ -1128,19 +1141,6 @@ function App() {
       localStorage.setItem('mmo_driver_location', JSON.stringify(locPayload));
     } catch (e) {}
   }, [currentSimBikeCoord, simProgress, simDistanceKm, currentSimDriver]);
-
-  // Dynamic price calculation in simulator (real driving road distance)
-  const simDistanceKm = useMemo(() => {
-    if (roadRouteData && roadRouteData.roadDistanceKm) {
-      return roadRouteData.roadDistanceKm;
-    }
-    return getDistanceKm(simPickup.coords, simDropoff.coords);
-  }, [roadRouteData, simPickup, simDropoff]);
-  const simCalculatedPrice = useMemo(() => {
-    const base = settings.base_fee;
-    const distanceFare = simDistanceKm * settings.per_km_rate;
-    return Number((base + distanceFare).toFixed(2));
-  }, [simDistanceKm, settings]);
 
   // ⚡ 1-Click Complete Scenario Runner (Automated Interactive Simulation)
   const runOneClickScenario = () => {
