@@ -1,0 +1,26 @@
+name: moto_delivery_app
+description: "Motorcycle Delivery Mobile App (Client & Driver) with Live GPS Tracking"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_map: ^6.1.0        # خريطة مجانية وخفيفة تعتمد على OpenStreetMap (بدون الحاجة لبطاقة بنكية لـ Google Maps)
+  latlong2: ^0.9.0
+  socket_io_client: ^2.0.3+1 # اتصال حي بـ WebSockets للتبع المباشر
+  http: ^1.2.1
+  flutter_secure_storage: ^9.0.0 # تخزين آمن لـ JWT Token
+  geolocator: ^11.0.0       # جلب إحداثيات GPS الحية لهاتف السائق
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

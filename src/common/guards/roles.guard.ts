@@ -1,0 +1,26 @@
+import {
+  CanActivate, ExecutionContext, Injectable, ForbiddenException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(ctx: ExecutionContext): boolean {
+    const roles = this.reflector.getAllAndOverride<string[]>('roles', [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
+
+    if (!roles || roles.length === 0) return true;
+
+    const { user } = ctx.switchToHttp().getRequest();
+
+    if (!roles.includes(user?.role)) {
+      throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا المورد');
+    }
+
+    return true;
+  }
+}
